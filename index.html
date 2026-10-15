@@ -29,7 +29,10 @@
       </div>
       <div class="nav-actions">
         <button id="btnHistory" class="nav-btn" title="查看打卡日记" aria-label="查看打卡日记">
-          <span class="icon">📖</span> <span class="nav-btn-text">打卡记录</span>
+          <span class="icon">📖</span> <span class="nav-btn-text">我的打卡</span>
+        </button>
+        <button id="btnAdmin" class="nav-btn nav-btn-admin" title="管理员管理后台" aria-label="管理员后台">
+          <span class="icon">🔐</span> <span class="nav-btn-text">管理员后台</span>
         </button>
         <button id="btnReset" class="nav-btn" title="重置本页答题" aria-label="重置答题">
           <span class="icon">🔄</span> <span class="nav-btn-text">清空</span>
@@ -107,6 +110,27 @@
 
     <!-- 题目列表表单 -->
     <form id="quizForm" class="quiz-form" onsubmit="return false;">
+      <!-- 受测者基本信息卡片（选填，保护隐私且便于管理员识别） -->
+      <section class="card user-info-card">
+        <div class="user-info-header">
+          <span class="q-icon">👤</span>
+          <div>
+            <h3 class="user-info-title">打卡人信息 <small class="optional-tag">（选填，不填默认保密）</small></h3>
+            <p class="user-info-sub">可以填写你的小昵称或代号，方便生成专属报告和记录</p>
+          </div>
+        </div>
+        <div class="user-info-grid">
+          <div class="input-group">
+            <label for="userName">昵称 / 姓名 / 代号：</label>
+            <input type="text" id="userName" class="text-input" placeholder="例如：小太阳、晨晨（选填）" maxlength="20">
+          </div>
+          <div class="input-group">
+            <label for="userGroup">班级 / 年级 / 组别：</label>
+            <input type="text" id="userGroup" class="text-input" placeholder="例如：五年二班、初一（选填）" maxlength="20">
+          </div>
+        </div>
+      </section>
+
       <div id="questionsContainer" class="questions-container">
         <!-- 题目卡片通过 JS 渲染生成 -->
       </div>
@@ -265,6 +289,205 @@
       </div>
       <div class="drawer-footer">
         <button id="btnClearHistory" class="btn-clear-history">清空所有历史记录</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 管理员登录弹窗 ================= -->
+  <div id="adminLoginModal" class="modal-overlay" style="display: none;">
+    <div class="modal-dialog admin-login-dialog">
+      <div class="card login-card">
+        <div class="login-header">
+          <span class="login-icon">🔐</span>
+          <h3>管理员工作台登录</h3>
+          <p class="login-sub">仅供教师、咨询师及管理人员查看全量后台数据</p>
+        </div>
+        <form id="adminLoginForm" onsubmit="return false;">
+          <div class="input-group">
+            <label for="adminPassword">请输入管理员密码：</label>
+            <input type="password" id="adminPassword" class="text-input" placeholder="默认初始密码：admin123" autocomplete="current-password" required>
+          </div>
+          <div id="loginErrorMsg" class="login-error-msg" style="display: none;">密码错误，请重新输入！</div>
+          <div class="login-actions">
+            <button type="submit" id="btnAdminLoginSubmit" class="btn-submit btn-login-submit">登 录</button>
+            <button type="button" id="btnAdminLoginCancel" class="btn-action btn-close">取 消</button>
+          </div>
+          <p class="login-tip">💡 提示：初次使用默认密码为 <code>admin123</code>，登录后可在后台修改。</p>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 管理员工作台大屏 ================= -->
+  <div id="adminDashboardModal" class="modal-overlay admin-dashboard-overlay" style="display: none;">
+    <div class="admin-dashboard-container">
+      <!-- 仪表盘顶栏 -->
+      <header class="dashboard-header">
+        <div class="dashboard-brand">
+          <span class="icon">📊</span>
+          <div>
+            <h2>心情与能量小打卡 · 后台数据管理中心</h2>
+            <div class="backend-status-pill">
+              <span id="backendStatusDot" class="status-dot dot-green"></span>
+              <span id="backendStatusText">后台数据中心已就绪 (本地安全存储)</span>
+            </div>
+          </div>
+        </div>
+        <div class="dashboard-top-actions">
+          <button id="btnExportCSV" class="btn-dash btn-export" title="导出 Excel/CSV 报表">
+            <span>📥 导出 Excel / CSV 表格</span>
+          </button>
+          <button id="btnOpenChangePwd" class="btn-dash btn-sec">
+            <span>🔑 修改管理密码</span>
+          </button>
+          <button id="btnAdminLogout" class="btn-dash btn-danger">
+            <span>🚪 退出登录</span>
+          </button>
+          <button id="btnCloseDashboard" class="close-icon-btn dashboard-close-btn" aria-label="关闭">&times;</button>
+        </div>
+      </header>
+
+      <!-- 数据统计概览看板 -->
+      <section class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-icon bg-green">👥</div>
+          <div class="metric-body">
+            <span class="metric-label">累计测评人次</span>
+            <span class="metric-value" id="statTotalCount">0</span>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon bg-yellow">⚡</div>
+          <div class="metric-body">
+            <span class="metric-label">平均身心负荷分</span>
+            <span class="metric-value" id="statAvgScore">0.0 <small>/ 30</small></span>
+          </div>
+        </div>
+        <div class="metric-card alert-card">
+          <div class="metric-icon bg-red">🚨</div>
+          <div class="metric-body">
+            <span class="metric-label">需重点关爱/预警</span>
+            <span class="metric-value text-red" id="statAlertCount">0</span>
+          </div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-icon bg-blue">💬</div>
+          <div class="metric-body">
+            <span class="metric-label">树洞倾诉留言数</span>
+            <span class="metric-value" id="statNoteCount">0</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 搜索、筛选与管理栏 -->
+      <section class="table-filter-bar">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="adminSearchInput" class="search-input" placeholder="按姓名、昵称、代号或班级搜索...">
+        </div>
+        <div class="filter-controls">
+          <select id="adminRiskFilter" class="filter-select">
+            <option value="all">全部心理状态等级</option>
+            <option value="alert">🚨 仅看重点关爱预警 (高分/想消失)</option>
+            <option value="green">☀️ 阳光充沛 (0-4分)</option>
+            <option value="light">⛅ 偶遇微风 (5-9分)</option>
+            <option value="orange">🔋 蓄电池充能 (10-14分)</option>
+            <option value="red">🫂 亟待守护 (15-30分)</option>
+          </select>
+          <button id="btnAdminRefresh" class="btn-dash btn-sec">
+            <span>🔄 刷新</span>
+          </button>
+          <button id="btnClearAllAdminData" class="btn-dash btn-danger-soft">
+            <span>🗑️ 清空所有记录</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- 数据表格容器 -->
+      <section class="admin-table-wrap">
+        <table class="admin-data-table">
+          <thead>
+            <tr>
+              <th width="60">序号</th>
+              <th width="120">打卡人</th>
+              <th width="120">班级/组别</th>
+              <th width="150">打卡时间</th>
+              <th width="90">总得分</th>
+              <th width="160">心理电量等级</th>
+              <th width="110">重点预警</th>
+              <th>树洞留言摘要</th>
+              <th width="130" class="text-center">操作</th>
+            </tr>
+          </thead>
+          <tbody id="adminTableBody">
+            <!-- 动态渲染数据行 -->
+          </tbody>
+        </table>
+        <div id="adminEmptyTable" class="empty-table-hint" style="display: none;">
+          🌱 暂无符合条件的打卡数据记录
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ================= 答卷详细查看弹窗 ================= -->
+  <div id="adminDetailModal" class="modal-overlay" style="display: none;">
+    <div class="modal-dialog admin-detail-dialog">
+      <div class="card detail-card">
+        <div class="detail-header">
+          <div class="detail-title-wrap">
+            <span class="icon">📋</span>
+            <h3 id="detailRespondentName">受测者答卷详情</h3>
+          </div>
+          <button id="btnCloseDetailModal" class="close-icon-btn" aria-label="关闭">&times;</button>
+        </div>
+        
+        <div class="detail-meta-grid">
+          <div><strong>打卡时间：</strong><span id="detailSubmitTime">-</span></div>
+          <div><strong>班级/组别：</strong><span id="detailClassGroup">-</span></div>
+          <div><strong>总得分数：</strong><span id="detailScore" class="detail-score-pill">-</span></div>
+          <div><strong>风险预警：</strong><span id="detailRiskTag">-</span></div>
+        </div>
+
+        <div class="detail-questions-list" id="detailQuestionsList">
+          <!-- 10 道题目逐题打分列表 -->
+        </div>
+
+        <div class="detail-note-box" id="detailNoteBox">
+          <h4 class="section-title">💬 树洞留言内容：</h4>
+          <p id="detailNoteContent" class="tree-hole-paper">无留言</p>
+        </div>
+
+        <div class="modal-buttons" style="margin-top: 20px;">
+          <button id="btnCloseDetailBtn" class="btn-action btn-close">关闭详情</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 修改管理员密码弹窗 ================= -->
+  <div id="adminChangePwdModal" class="modal-overlay" style="display: none;">
+    <div class="modal-dialog" style="max-width: 420px;">
+      <div class="card">
+        <h3 style="margin-bottom: 14px; color: var(--primary);">🔑 修改管理员密码</h3>
+        <form id="changePwdForm" onsubmit="return false;">
+          <div class="input-group">
+            <label for="oldPassword">当前原密码：</label>
+            <input type="password" id="oldPassword" class="text-input" required>
+          </div>
+          <div class="input-group" style="margin-top: 10px;">
+            <label for="newPassword">设置新密码：</label>
+            <input type="password" id="newPassword" class="text-input" placeholder="至少4位字符" required>
+          </div>
+          <div class="input-group" style="margin-top: 10px;">
+            <label for="confirmPassword">确认新密码：</label>
+            <input type="password" id="confirmPassword" class="text-input" required>
+          </div>
+          <div class="modal-buttons" style="margin-top: 18px;">
+            <button type="submit" id="btnSaveNewPwd" class="btn-action btn-primary">保存修改</button>
+            <button type="button" id="btnCancelChangePwd" class="btn-action btn-close">取消</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>

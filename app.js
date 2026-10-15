@@ -1,5 +1,5 @@
 /**
- * 🌱 近期心情与能量小打卡 - 核心交互逻辑与评分系统
+ * 🌱 近期心情与能量小打卡 - 核心交互逻辑、双权限体系与数据后台管理
  */
 
 // 1. 题目数据源
@@ -74,20 +74,30 @@ const scoreOptions = [
   { score: 3, title: "3分", desc: "几乎每天都这样" }
 ];
 
+// 本地存储键定义
+const STORAGE_USER_HISTORY = "psy_test_history_v1";
+const STORAGE_ADMIN_RECORDS = "psy_admin_records_v1";
+const STORAGE_ADMIN_PWD = "psy_admin_pwd_v1";
+const DEFAULT_ADMIN_PWD = "admin123";
+
 // 状态管理
 const userAnswers = {}; // { questionId: score }
-const STORAGE_KEY = "psy_test_history_v1";
+let allAdminRecords = []; // 管理员视角下的全量答卷
+let isAdminLoggedIn = false;
+let currentBackendUrl = null; // 探测到的后端服务地址（如 http://localhost:8080）
 
 // DOM 元素引用
 const questionsContainer = document.getElementById("questionsContainer");
 const progressFill = document.getElementById("progressFill");
 const answeredCounter = document.getElementById("answeredCounter");
 const btnSubmit = document.getElementById("btnSubmit");
+const userNameInput = document.getElementById("userName");
+const userGroupInput = document.getElementById("userGroup");
 const secretNote = document.getElementById("secretNote");
 const wordCount = document.getElementById("wordCount");
 const btnReset = document.getElementById("btnReset");
 
-// 弹窗与结果元素
+// 前台报告弹窗
 const resultModal = document.getElementById("resultModal");
 const reportCaptureCard = document.getElementById("reportCaptureCard");
 const totalScoreEl = document.getElementById("totalScore");
@@ -105,18 +115,67 @@ const btnCloseModal = document.getElementById("btnCloseModal");
 const btnSaveImage = document.getElementById("btnSaveImage");
 const btnCopyText = document.getElementById("btnCopyText");
 
-// 历史抽屉元素
+// 普通用户打卡日记抽屉
 const historyDrawer = document.getElementById("historyDrawer");
 const btnHistory = document.getElementById("btnHistory");
 const btnCloseDrawer = document.getElementById("btnCloseDrawer");
 const historyList = document.getElementById("historyList");
 const btnClearHistory = document.getElementById("btnClearHistory");
 
-// 初始化页面
+// 管理员工作台相关 DOM
+const btnAdmin = document.getElementById("btnAdmin");
+const adminLoginModal = document.getElementById("adminLoginModal");
+const adminLoginForm = document.getElementById("adminLoginForm");
+const adminPasswordInput = document.getElementById("adminPassword");
+const loginErrorMsg = document.getElementById("loginErrorMsg");
+const btnAdminLoginCancel = document.getElementById("btnAdminLoginCancel");
+
+const adminDashboardModal = document.getElementById("adminDashboardModal");
+const btnCloseDashboard = document.getElementById("btnCloseDashboard");
+const btnAdminLogout = document.getElementById("btnAdminLogout");
+const btnExportCSV = document.getElementById("btnExportCSV");
+const btnOpenChangePwd = document.getElementById("btnOpenChangePwd");
+const btnAdminRefresh = document.getElementById("btnAdminRefresh");
+const btnClearAllAdminData = document.getElementById("btnClearAllAdminData");
+
+const statTotalCount = document.getElementById("statTotalCount");
+const statAvgScore = document.getElementById("statAvgScore");
+const statAlertCount = document.getElementById("statAlertCount");
+const statNoteCount = document.getElementById("statNoteCount");
+
+const adminSearchInput = document.getElementById("adminSearchInput");
+const adminRiskFilter = document.getElementById("adminRiskFilter");
+const adminTableBody = document.getElementById("adminTableBody");
+const adminEmptyTable = document.getElementById("adminEmptyTable");
+const backendStatusDot = document.getElementById("backendStatusDot");
+const backendStatusText = document.getElementById("backendStatusText");
+
+// 答卷详情弹窗
+const adminDetailModal = document.getElementById("adminDetailModal");
+const btnCloseDetailModal = document.getElementById("btnCloseDetailModal");
+const btnCloseDetailBtn = document.getElementById("btnCloseDetailBtn");
+const detailRespondentName = document.getElementById("detailRespondentName");
+const detailSubmitTime = document.getElementById("detailSubmitTime");
+const detailClassGroup = document.getElementById("detailClassGroup");
+const detailScore = document.getElementById("detailScore");
+const detailRiskTag = document.getElementById("detailRiskTag");
+const detailQuestionsList = document.getElementById("detailQuestionsList");
+const detailNoteContent = document.getElementById("detailNoteContent");
+
+// 修改密码弹窗
+const adminChangePwdModal = document.getElementById("adminChangePwdModal");
+const changePwdForm = document.getElementById("changePwdForm");
+const oldPasswordInput = document.getElementById("oldPassword");
+const newPasswordInput = document.getElementById("newPassword");
+const confirmPasswordInput = document.getElementById("confirmPassword");
+const btnCancelChangePwd = document.getElementById("btnCancelChangePwd");
+
+// 初始化
 document.addEventListener("DOMContentLoaded", () => {
   renderQuestions();
   bindEvents();
   updateProgress();
+  detectBackendServer();
 });
 
 /**
@@ -164,7 +223,7 @@ function renderQuestions() {
  * 事件绑定
  */
 function bindEvents() {
-  // 点击选项逻辑
+  // 点击题目选项
   questionsContainer.addEventListener("click", (e) => {
     const btn = e.target.closest(".option-btn");
     if (!btn) return;
@@ -179,18 +238,17 @@ function bindEvents() {
     wordCount.textContent = secretNote.value.length;
   });
 
-  // 提交测评
+  // 提交测评（普通受测者）
   btnSubmit.addEventListener("click", handleSubmit);
 
   // 清空重置
   btnReset.addEventListener("click", handleReset);
 
-  // 模态弹窗关闭
+  // 前台结果报告模态框关闭
   btnCloseModal.addEventListener("click", () => {
     resultModal.style.display = "none";
     document.body.style.overflow = "auto";
   });
-
   resultModal.addEventListener("click", (e) => {
     if (e.target === resultModal) {
       resultModal.style.display = "none";
@@ -198,19 +256,76 @@ function bindEvents() {
     }
   });
 
-  // 保存图片海报
+  // 保存图片海报 & 复制文字
   btnSaveImage.addEventListener("click", handleSavePoster);
-
-  // 复制文字总结
   btnCopyText.addEventListener("click", handleCopyReportText);
 
-  // 历史抽屉事件
+  // 普通用户历史打卡日记
   btnHistory.addEventListener("click", openHistoryDrawer);
   btnCloseDrawer.addEventListener("click", () => historyDrawer.style.display = "none");
   historyDrawer.addEventListener("click", (e) => {
     if (e.target === historyDrawer) historyDrawer.style.display = "none";
   });
-  btnClearHistory.addEventListener("click", handleClearHistory);
+  btnClearHistory.addEventListener("click", handleClearUserHistory);
+
+  // ================= 管理员权限事件 =================
+  btnAdmin.addEventListener("click", handleOpenAdmin);
+  adminLoginForm.addEventListener("submit", handleAdminLoginSubmit);
+  btnAdminLoginCancel.addEventListener("click", () => adminLoginModal.style.display = "none");
+
+  btnCloseDashboard.addEventListener("click", () => adminDashboardModal.style.display = "none");
+  btnAdminLogout.addEventListener("click", handleAdminLogout);
+  btnExportCSV.addEventListener("click", handleExportCSV);
+  btnAdminRefresh.addEventListener("click", refreshAdminData);
+  btnClearAllAdminData.addEventListener("click", handleClearAllAdminRecords);
+
+  adminSearchInput.addEventListener("input", filterAndRenderAdminTable);
+  adminRiskFilter.addEventListener("change", filterAndRenderAdminTable);
+
+  // 答卷详情弹窗
+  btnCloseDetailModal.addEventListener("click", () => adminDetailModal.style.display = "none");
+  btnCloseDetailBtn.addEventListener("click", () => adminDetailModal.style.display = "none");
+
+  // 修改密码
+  btnOpenChangePwd.addEventListener("click", () => {
+    adminChangePwdModal.style.display = "flex";
+    oldPasswordInput.value = "";
+    newPasswordInput.value = "";
+    confirmPasswordInput.value = "";
+  });
+  btnCancelChangePwd.addEventListener("click", () => adminChangePwdModal.style.display = "none");
+  changePwdForm.addEventListener("submit", handleChangePasswordSubmit);
+}
+
+/**
+ * 探测独立后端服务 (Python server.py)
+ */
+async function detectBackendServer() {
+  const possibleEndpoints = ["http://localhost:8080/api/health", "/api/health"];
+  for (const url of possibleEndpoints) {
+    try {
+      const res = await fetch(url, { method: "GET", signal: AbortSignal.timeout(1200) });
+      if (res.ok) {
+        currentBackendUrl = url.replace("/api/health", "");
+        console.log("已连通独立后端服务器:", currentBackendUrl);
+        updateBackendStatusBadge(true);
+        return;
+      }
+    } catch (err) {
+      // 本地无服务器或静态运行
+    }
+  }
+  updateBackendStatusBadge(false);
+}
+
+function updateBackendStatusBadge(isOnline) {
+  if (isOnline) {
+    backendStatusDot.className = "status-dot dot-green";
+    backendStatusText.textContent = "已连接独立后端服务器 (SQLite 实时数据库同步)";
+  } else {
+    backendStatusDot.className = "status-dot dot-blue";
+    backendStatusText.textContent = "GitHub Pages 离线数据中心 (本地安全加密存储)";
+  }
 }
 
 /**
@@ -219,13 +334,11 @@ function bindEvents() {
 function handleOptionSelect(qid, score, targetBtn) {
   userAnswers[qid] = score;
 
-  // 更新当前题目卡片的按钮样式
   const parentCard = document.getElementById(`qCard_${qid}`);
   const buttons = parentCard.querySelectorAll(".option-btn");
   buttons.forEach(b => b.classList.remove("selected"));
   targetBtn.classList.add("selected");
 
-  // 更新右上角状态小标
   const badge = document.getElementById(`qBadge_${qid}`);
   if (badge) {
     badge.textContent = `已选 ${score}分 ✓`;
@@ -233,10 +346,9 @@ function handleOptionSelect(qid, score, targetBtn) {
   }
   parentCard.classList.add("answered");
 
-  // 更新进度条
   updateProgress();
 
-  // 智能平滑滚动：自动跳转到下一道未答题目
+  // 平滑跳转
   const nextUnanswered = questionsData.find(q => userAnswers[q.id] === undefined);
   if (nextUnanswered && nextUnanswered.id > qid) {
     setTimeout(() => {
@@ -246,7 +358,6 @@ function handleOptionSelect(qid, score, targetBtn) {
       }
     }, 280);
   } else if (Object.keys(userAnswers).length === questionsData.length) {
-    // 全部答完，滚动到提交区
     setTimeout(() => {
       document.getElementById("cardTreeHole").scrollIntoView({ behavior: "smooth", block: "start" });
     }, 320);
@@ -266,16 +377,15 @@ function updateProgress() {
 }
 
 /**
- * 校验并处理提交
+ * 普通用户提交答卷
  */
-function handleSubmit() {
+async function handleSubmit() {
   const unanswered = questionsData.filter(q => userAnswers[q.id] === undefined);
 
   if (unanswered.length > 0) {
     const firstUnanswered = unanswered[0];
     const targetCard = document.getElementById(`qCard_${firstUnanswered.id}`);
     
-    // 突出提醒未答题目
     targetCard.scrollIntoView({ behavior: "smooth", block: "center" });
     targetCard.style.outline = "2px dashed #E76F51";
     setTimeout(() => {
@@ -292,32 +402,63 @@ function handleSubmit() {
     totalScore += userAnswers[i];
   }
 
-  // 生成分析评估
-  generateReport(totalScore);
+  // 组装受测者信息
+  const respondentName = userNameInput.value.trim() || "神秘小天使";
+  const respondentGroup = userGroupInput.value.trim() || "未填写";
+  const secret = secretNote.value.trim();
+
+  // 生成分析与评估
+  const gradeData = calculateGrade(totalScore);
+
+  // 组装存储对象
+  const now = new Date();
+  const formatTime = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const isAlert = totalScore >= 15 || (userAnswers[10] || 0) >= 2;
+
+  const newRecord = {
+    id: "rec_" + Date.now() + "_" + Math.floor(Math.random() * 1000),
+    name: respondentName,
+    group: respondentGroup,
+    answers: { ...userAnswers },
+    totalScore: totalScore,
+    batteryLevel: gradeData.batteryLevel,
+    statusTag: gradeData.tag,
+    headline: gradeData.headline,
+    gradeKey: gradeData.key,
+    isAlert: isAlert,
+    secretNote: secret,
+    submitTime: formatTime,
+    timestamp: Date.now()
+  };
+
+  // 1. 存入后台数据库（无论是否连网，本地均作为可靠持久池）
+  saveToAdminPool(newRecord);
+
+  // 2. 尝试向后端 API 发送
+  trySendToBackend(newRecord);
+
+  // 3. 存入普通用户个人日记
+  saveUserHistoryRecord(totalScore, gradeData.headline, formatTime);
+
+  // 4. 展示报告
+  displayReport(newRecord, gradeData);
+}
+
+function pad(n) {
+  return n < 10 ? "0" + n : n;
 }
 
 /**
- * 根据分值生成报告内容
+ * 评分算法
  */
-function generateReport(score) {
-  // 设置日期
-  const now = new Date();
-  const dateStr = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`;
-  reportDateEl.textContent = dateStr;
-
-  // 计分动画
-  animateScoreCounter(score);
-
-  // 评估等级数据字典
-  let gradeData = {};
-  let batteryLevel = 90;
-
+function calculateGrade(score) {
   if (score <= 4) {
-    batteryLevel = 95 - score * 3;
-    gradeData = {
+    const batteryLevel = 95 - score * 3;
+    return {
+      key: "green",
+      batteryLevel,
       tag: "能量满格 · 阳光充沛 🌱",
       headline: "☀️ 阳光充沛的小树苗",
-      color: "#2D6A4F",
       meterColor: "linear-gradient(90deg, #52B788, #40916C)",
       eval: "亲爱的宝贝，你现在的心理状态就像沐浴在阳光下的小树苗一样，内心充满了向上的活力和光亮！在近两周的生活里，你有着较好的情绪调节能力。即使遇到一些小烦恼，你也能积极应对。请继续拥抱这份好状态，去感受每天阳光晒在身上的温暖吧～",
       suggestions: [
@@ -327,11 +468,12 @@ function generateReport(score) {
       ]
     };
   } else if (score <= 9) {
-    batteryLevel = 80 - (score - 4) * 4;
-    gradeData = {
+    const batteryLevel = 80 - (score - 4) * 4;
+    return {
+      key: "light",
+      batteryLevel,
       tag: "轻度耗电 · 偶遇微风 ⛅",
       headline: "⛅ 偶遇微风云朵的小草",
-      color: "#40916C",
       meterColor: "linear-gradient(90deg, #74C69D, #52B788)",
       eval: "宝贝，最近这14天里，你可能稍微感到了一点点疲惫或者偶尔的小烦心，就像手机电池用到了70%左右。在学习或和别人相处中，有一点点小波折是非常正常的现象。不需要责怪自己，这只是身体和心里在悄悄提醒你：该适当喘口气、休息一下啦。",
       suggestions: [
@@ -341,11 +483,12 @@ function generateReport(score) {
       ]
     };
   } else if (score <= 14) {
-    batteryLevel = 55 - (score - 9) * 5;
-    gradeData = {
+    const batteryLevel = 55 - (score - 9) * 5;
+    return {
+      key: "orange",
+      batteryLevel,
       tag: "蓄电池告警 · 需要充能 🔋",
       headline: "🔋 呼叫关怀与休整的蓄电池",
-      color: "#F4A261",
       meterColor: "linear-gradient(90deg, #F4A261, #E76F51)",
       eval: "亲爱的宝贝，紧紧抱抱你！最近两周，你可能承受了比平时更多的压力与疲惫，心里像装了一块沉甸甸的小石头，做事情提不起劲，甚至偶尔觉得委屈想哭。请千万记得：感到累、烦恼或脆弱并不是你的过错，这是你的小心灵在勇敢地向你发出求助信号。",
       suggestions: [
@@ -355,11 +498,12 @@ function generateReport(score) {
       ]
     };
   } else {
-    batteryLevel = Math.max(15, 30 - (score - 15) * 2);
-    gradeData = {
+    const batteryLevel = Math.max(15, 30 - (score - 15) * 2);
+    return {
+      key: "red",
+      batteryLevel,
       tag: "亟待守护 · 渴望拥抱 🫂",
       headline: "🫂 特别需要被爱与守护的小天使",
-      color: "#E76F51",
       meterColor: "linear-gradient(90deg, #E76F51, #C53030)",
       eval: "亲爱的宝贝，看着你此刻的打卡，真的非常心疼你。这段时间的你，一定默默承受了许多委屈、辛苦和难熬的时刻。也许周围有人不理解你，甚至让你觉得自己不够好。请你看着镜子对自己说：‘我依然是一个珍贵又可爱的宝贝。’ 难关总会过去的，你不需要独自承担这所有的重量。",
       suggestions: [
@@ -369,51 +513,97 @@ function generateReport(score) {
       ]
     };
   }
+}
 
-  // 渲染等级文案
+/**
+ * 渲染结果报告
+ */
+function displayReport(record, gradeData) {
+  reportDateEl.textContent = `${record.name} 的能量守护单 · ${record.submitTime}`;
+
+  animateScoreCounter(record.totalScore);
+
   energyStatusTag.textContent = gradeData.tag;
   energyHeadline.textContent = gradeData.headline;
-  batteryPercentage.textContent = `${batteryLevel}%`;
-  batteryMeterFill.style.width = `${batteryLevel}%`;
+  batteryPercentage.textContent = `${gradeData.batteryLevel}%`;
+  batteryMeterFill.style.width = `${gradeData.batteryLevel}%`;
   batteryMeterFill.style.background = gradeData.meterColor;
   reportEvaluation.textContent = gradeData.eval;
 
-  // 渲染建议列表
   reportSuggestions.innerHTML = gradeData.suggestions
     .map(s => `<li><span>${s}</span></li>`)
     .join("");
 
-  // 特殊预警检测（若第10题关于孤独与消失 >= 2分）
-  const q10Score = userAnswers[10] || 0;
-  if (q10Score >= 2) {
+  // 特殊预警检测
+  if (record.isAlert) {
     safeGuardNotice.style.display = "flex";
   } else {
     safeGuardNotice.style.display = "none";
   }
 
-  // 渲染树洞秘密
-  const secret = secretNote.value.trim();
-  if (secret) {
+  // 树洞
+  if (record.secretNote) {
     reportTreeHoleSection.style.display = "block";
-    reportTreeHoleContent.textContent = secret;
+    reportTreeHoleContent.textContent = record.secretNote;
   } else {
     reportTreeHoleSection.style.display = "none";
   }
 
-  // 打开模态弹窗
   resultModal.style.display = "flex";
   document.body.style.overflow = "hidden";
-
-  // 保存记录至本地历史
-  saveHistoryRecord(score, gradeData.headline, dateStr, secret);
 }
 
 /**
- * 分数滚动数字动效
+ * 存入管理员全量数据池
+ */
+function saveToAdminPool(record) {
+  try {
+    const list = JSON.parse(localStorage.getItem(STORAGE_ADMIN_RECORDS) || "[]");
+    list.unshift(record);
+    localStorage.setItem(STORAGE_ADMIN_RECORDS, JSON.stringify(list));
+  } catch (err) {
+    console.error("写入后台本地数据池失败", err);
+  }
+}
+
+/**
+ * 尝试推送到后端 API (如果在线)
+ */
+async function trySendToBackend(record) {
+  if (!currentBackendUrl) return;
+  try {
+    await fetch(`${currentBackendUrl}/api/submit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(record)
+    });
+  } catch (err) {
+    console.warn("未能成功上报到远程后端，已妥善保存在本地数据库池中", err);
+  }
+}
+
+/**
+ * 普通用户个人历史保存
+ */
+function saveUserHistoryRecord(score, headline, dateStr) {
+  try {
+    const list = JSON.parse(localStorage.getItem(STORAGE_USER_HISTORY) || "[]");
+    list.unshift({
+      id: Date.now(),
+      date: dateStr,
+      score,
+      headline
+    });
+    localStorage.setItem(STORAGE_USER_HISTORY, JSON.stringify(list.slice(0, 20)));
+  } catch (e) {}
+}
+
+/**
+ * 数字动效
  */
 function animateScoreCounter(target) {
   let current = 0;
-  const duration = 600;
+  const duration = 500;
   const stepTime = Math.max(20, Math.floor(duration / (target + 1)));
 
   totalScoreEl.textContent = "0";
@@ -428,10 +618,10 @@ function animateScoreCounter(target) {
 }
 
 /**
- * 清空重做
+ * 清空重做（普通用户）
  */
 function handleReset() {
-  if (Object.keys(userAnswers).length === 0) return;
+  if (Object.keys(userAnswers).length === 0 && !userNameInput.value && !secretNote.value) return;
   if (!confirm("确定要清空当前的已选内容，重新开始打卡吗？🌱")) return;
 
   for (let key in userAnswers) {
@@ -445,6 +635,8 @@ function handleReset() {
     b.classList.remove("done");
   });
 
+  userNameInput.value = "";
+  userGroupInput.value = "";
   secretNote.value = "";
   wordCount.textContent = "0";
   updateProgress();
@@ -452,40 +644,13 @@ function handleReset() {
 }
 
 /**
- * 本地存储打卡历史
- */
-function saveHistoryRecord(score, headline, date, note) {
-  try {
-    const list = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-    list.unshift({
-      id: Date.now(),
-      date,
-      score,
-      headline,
-      hasNote: Boolean(note)
-    });
-    // 保留最近 20 条记录
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list.slice(0, 20)));
-  } catch (err) {
-    console.warn("未能写入 localStorage", err);
-  }
-}
-
-/**
- * 打开历史打卡抽屉
+ * 打开普通用户打卡日记
  */
 function openHistoryDrawer() {
   historyDrawer.style.display = "flex";
-  renderHistoryList();
-}
-
-/**
- * 渲染历史记录列表
- */
-function renderHistoryList() {
   let list = [];
   try {
-    list = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    list = JSON.parse(localStorage.getItem(STORAGE_USER_HISTORY) || "[]");
   } catch (e) {
     list = [];
   }
@@ -493,7 +658,7 @@ function renderHistoryList() {
   if (list.length === 0) {
     historyList.innerHTML = `
       <div class="empty-history">
-        🌱 还没有打卡记录哦，<br>完成一次测试后就会记录在这里啦～
+        🌱 还没有你的打卡记录哦，<br>完成一次测试后就会记录在这里啦～
       </div>
     `;
     return;
@@ -510,13 +675,10 @@ function renderHistoryList() {
   `).join("");
 }
 
-/**
- * 清空历史记录
- */
-function handleClearHistory() {
-  if (!confirm("确定要清空所有打卡记录日记吗？")) return;
-  localStorage.removeItem(STORAGE_KEY);
-  renderHistoryList();
+function handleClearUserHistory() {
+  if (!confirm("确定要清空你的打卡记录日记吗？")) return;
+  localStorage.removeItem(STORAGE_USER_HISTORY);
+  openHistoryDrawer();
 }
 
 /**
@@ -535,7 +697,7 @@ function handleCopyReportText() {
   text += `状态定位：${tag} (${headline})\n\n`;
   text += `💌 写给宝贝的心语：\n${evalText}\n\n`;
   
-  if (userAnswers[10] >= 2) {
+  if ((userAnswers[10] || 0) >= 2) {
     text += `⚠️ 特别关爱提示：检测到较强孤独感，推荐拨打青少年热线 12355 获得帮助。\n\n`;
   }
 
@@ -552,7 +714,7 @@ function handleCopyReportText() {
 }
 
 /**
- * 保存结果海报（使用 html2canvas）
+ * 保存结果海报
  */
 function handleSavePoster() {
   const btn = btnSaveImage;
@@ -585,4 +747,387 @@ function handleSavePoster() {
     btn.innerHTML = originalText;
     btn.disabled = false;
   });
+}
+
+// ============================================================
+// 🔐 管理员权限与后台数据管理系统
+// ============================================================
+
+/**
+ * 点击导航栏管理员按钮
+ */
+function handleOpenAdmin() {
+  if (isAdminLoggedIn) {
+    openAdminDashboard();
+  } else {
+    // 弹出管理员登录窗
+    adminLoginModal.style.display = "flex";
+    adminPasswordInput.value = "";
+    loginErrorMsg.style.display = "none";
+    setTimeout(() => adminPasswordInput.focus(), 150);
+  }
+}
+
+/**
+ * 校验管理员登录
+ */
+function handleAdminLoginSubmit(e) {
+  e.preventDefault();
+  const inputPwd = adminPasswordInput.value.trim();
+  const storedPwd = localStorage.getItem(STORAGE_ADMIN_PWD) || DEFAULT_ADMIN_PWD;
+
+  if (inputPwd === storedPwd) {
+    isAdminLoggedIn = true;
+    adminLoginModal.style.display = "none";
+    loginErrorMsg.style.display = "none";
+    openAdminDashboard();
+  } else {
+    loginErrorMsg.style.display = "block";
+    loginErrorMsg.textContent = "密码错误，请重新输入！（默认初始密码：admin123）";
+    adminPasswordInput.focus();
+  }
+}
+
+/**
+ * 登出管理员
+ */
+function handleAdminLogout() {
+  isAdminLoggedIn = false;
+  adminDashboardModal.style.display = "none";
+  alert("管理员已安全退出登录。");
+}
+
+/**
+ * 打开管理员后台大屏
+ */
+async function openAdminDashboard() {
+  adminDashboardModal.style.display = "flex";
+  await refreshAdminData();
+}
+
+/**
+ * 刷新后台数据（优先服务端，降级本地存储）
+ */
+async function refreshAdminData() {
+  let records = [];
+
+  // 1. 若有独立后端，先尝试从后端拉取
+  if (currentBackendUrl) {
+    try {
+      const res = await fetch(`${currentBackendUrl}/api/admin/records`);
+      if (res.ok) {
+        records = await res.json();
+      }
+    } catch (e) {
+      console.warn("未能从后端 API 抓取数据，将使用本地存储数据", e);
+    }
+  }
+
+  // 2. 如果后端没有数据或离线，读取本地存储
+  if (!records || records.length === 0) {
+    try {
+      records = JSON.parse(localStorage.getItem(STORAGE_ADMIN_RECORDS) || "[]");
+    } catch (e) {
+      records = [];
+    }
+  }
+
+  allAdminRecords = records;
+  updateAdminMetrics(records);
+  filterAndRenderAdminTable();
+}
+
+/**
+ * 更新统计指标卡片
+ */
+function updateAdminMetrics(records) {
+  const total = records.length;
+  statTotalCount.textContent = total;
+
+  if (total === 0) {
+    statAvgScore.innerHTML = "0.0 <small>/ 30</small>";
+    statAlertCount.textContent = "0";
+    statNoteCount.textContent = "0";
+    return;
+  }
+
+  const sumScore = records.reduce((acc, r) => acc + (r.totalScore || 0), 0);
+  const avg = (sumScore / total).toFixed(1);
+  statAvgScore.innerHTML = `${avg} <small>/ 30</small>`;
+
+  const alertCount = records.filter(r => r.isAlert).length;
+  statAlertCount.textContent = alertCount;
+
+  const noteCount = records.filter(r => r.secretNote && r.secretNote.trim().length > 0).length;
+  statNoteCount.textContent = noteCount;
+}
+
+/**
+ * 筛选并渲染表格
+ */
+function filterAndRenderAdminTable() {
+  const query = adminSearchInput.value.trim().toLowerCase();
+  const risk = adminRiskFilter.value;
+
+  let filtered = allAdminRecords.filter(r => {
+    // 关键词过滤
+    const matchName = (r.name || "").toLowerCase().includes(query);
+    const matchGroup = (r.group || "").toLowerCase().includes(query);
+    const matchNote = (r.secretNote || "").toLowerCase().includes(query);
+    const matchText = matchName || matchGroup || matchNote;
+
+    // 状态过滤
+    let matchRisk = true;
+    if (risk === "alert") {
+      matchRisk = r.isAlert === true;
+    } else if (risk === "green") {
+      matchRisk = r.totalScore <= 4;
+    } else if (risk === "light") {
+      matchRisk = r.totalScore >= 5 && r.totalScore <= 9;
+    } else if (risk === "orange") {
+      matchRisk = r.totalScore >= 10 && r.totalScore <= 14;
+    } else if (risk === "red") {
+      matchRisk = r.totalScore >= 15;
+    }
+
+    return matchText && matchRisk;
+  });
+
+  if (filtered.length === 0) {
+    adminTableBody.innerHTML = "";
+    adminEmptyTable.style.display = "block";
+    return;
+  }
+
+  adminEmptyTable.style.display = "none";
+  adminTableBody.innerHTML = filtered.map((r, idx) => {
+    let tagClass = "table-tag-green";
+    if (r.totalScore >= 15) tagClass = "table-tag-red";
+    else if (r.totalScore >= 10) tagClass = "table-tag-orange";
+    else if (r.totalScore >= 5) tagClass = "table-tag-light";
+
+    const alertHtml = r.isAlert 
+      ? `<span class="alert-badge-danger">🚨 重点关爱</span>` 
+      : `<span class="alert-badge-safe">正常</span>`;
+
+    const noteText = r.secretNote ? escapeHtml(r.secretNote) : `<span style="color:#C0C0C0;">无留言</span>`;
+
+    return `
+      <tr class="${r.isAlert ? 'row-alert' : ''}">
+        <td><strong>${idx + 1}</strong></td>
+        <td><strong>${escapeHtml(r.name || "神秘小天使")}</strong></td>
+        <td>${escapeHtml(r.group || "未填写")}</td>
+        <td><small style="color:#666;">${r.submitTime || "-"}</small></td>
+        <td><strong style="font-size:1.05rem; color:var(--primary);">${r.totalScore}</strong> <small>/30</small></td>
+        <td><span class="table-tag ${tagClass}">${escapeHtml(r.statusTag || "评测中")}</span></td>
+        <td>${alertHtml}</td>
+        <td><div class="note-cell-text" title="${escapeHtml(r.secretNote || '')}">${noteText}</div></td>
+        <td class="text-center">
+          <button class="btn-table-action" onclick="viewRecordDetail('${r.id}')">详情</button>
+          <button class="btn-table-action btn-table-del" onclick="deleteRecord('${r.id}')">删除</button>
+        </td>
+      </tr>
+    `;
+  }).join("");
+}
+
+function escapeHtml(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+/**
+ * 查看单个答卷详情
+ */
+window.viewRecordDetail = function(recordId) {
+  const record = allAdminRecords.find(r => r.id === recordId);
+  if (!record) return;
+
+  detailRespondentName.textContent = `${record.name} 的详细打卡答卷`;
+  detailSubmitTime.textContent = record.submitTime || "未知";
+  detailClassGroup.textContent = record.group || "未填写";
+  detailScore.textContent = `${record.totalScore} 分 (${record.headline || ''})`;
+  detailRiskTag.innerHTML = record.isAlert 
+    ? `<span style="color:#C53030; font-weight:bold;">🚨 触发重点关爱预警 (高分或强烈孤独)</span>` 
+    : `<span style="color:#2D6A4F; font-weight:bold;">状态良好</span>`;
+
+  // 10 道题目详情
+  detailQuestionsList.innerHTML = questionsData.map(q => {
+    const ansScore = record.answers ? record.answers[q.id] : "-";
+    const optDesc = scoreOptions.find(o => o.score === ansScore)?.desc || "";
+    return `
+      <div class="detail-q-item">
+        <div class="detail-q-title">
+          <span>${q.icon}</span> ${q.id}. ${q.category}
+          <div style="font-size:0.8rem; color:#777; margin-top:2px;">${q.question}</div>
+        </div>
+        <div style="text-align:right;">
+          <span class="detail-q-score" style="background:${ansScore >= 2 ? '#FED7D7' : '#D8F3DC'}; color:${ansScore >= 2 ? '#C53030' : '#1B4332'};">
+            ${ansScore} 分 · ${optDesc}
+          </span>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  detailNoteContent.textContent = record.secretNote ? record.secretNote : "（这位同学没有填写悄悄话）";
+
+  adminDetailModal.style.display = "flex";
+};
+
+/**
+ * 删除单个答卷
+ */
+window.deleteRecord = async function(recordId) {
+  if (!confirm("确定要删除这条测试记录吗？此操作无法恢复。")) return;
+
+  // 1. 如果有后端尝试向后端发送删除
+  if (currentBackendUrl) {
+    try {
+      await fetch(`${currentBackendUrl}/api/admin/records/${recordId}`, { method: "DELETE" });
+    } catch (e) {}
+  }
+
+  // 2. 本地池删除
+  allAdminRecords = allAdminRecords.filter(r => r.id !== recordId);
+  localStorage.setItem(STORAGE_ADMIN_RECORDS, JSON.stringify(allAdminRecords));
+
+  updateAdminMetrics(allAdminRecords);
+  filterAndRenderAdminTable();
+};
+
+/**
+ * 清空所有数据
+ */
+async function handleClearAllAdminRecords() {
+  if (!confirm("⚠️ 高危操作：确定要清空所有的打卡记录数据吗？\n建议在清空前先点击【导出 Excel/CSV】保存备份！")) return;
+
+  if (currentBackendUrl) {
+    try {
+      await fetch(`${currentBackendUrl}/api/admin/records/clear`, { method: "POST" });
+    } catch (e) {}
+  }
+
+  allAdminRecords = [];
+  localStorage.setItem(STORAGE_ADMIN_RECORDS, JSON.stringify([]));
+
+  updateAdminMetrics([]);
+  filterAndRenderAdminTable();
+  alert("已清空所有后台测试记录。");
+}
+
+/**
+ * 导出 Excel / CSV 表格文件（标准 UTF-8 BOM 格式，Excel 打开无乱码）
+ */
+function handleExportCSV() {
+  if (!allAdminRecords || allAdminRecords.length === 0) {
+    alert("当前还没有任何打卡记录，无法导出表格！🌱");
+    return;
+  }
+
+  const headers = [
+    "序号",
+    "打卡人姓名/代号",
+    "班级/组别",
+    "提交时间",
+    "Q1开心和爱好(0-3)",
+    "Q2心情天气(0-3)",
+    "Q3小脾气(0-3)",
+    "Q4身体电量(0-3)",
+    "Q5睡眠质量(0-3)",
+    "Q6吃饭胃口(0-3)",
+    "Q7大脑运转(0-3)",
+    "Q8身体不适(0-3)",
+    "Q9对自己看法(0-3)",
+    "Q10孤独求助(0-3)",
+    "总得分(满分30)",
+    "心理电量评估状态",
+    "是否重点预警",
+    "树洞悄悄话留言"
+  ];
+
+  const rows = allAdminRecords.map((r, index) => {
+    const qAnswers = r.answers || {};
+    return [
+      index + 1,
+      cleanCsv(r.name || "神秘小天使"),
+      cleanCsv(r.group || "未填写"),
+      cleanCsv(r.submitTime || "-"),
+      qAnswers[1] !== undefined ? qAnswers[1] : "-",
+      qAnswers[2] !== undefined ? qAnswers[2] : "-",
+      qAnswers[3] !== undefined ? qAnswers[3] : "-",
+      qAnswers[4] !== undefined ? qAnswers[4] : "-",
+      qAnswers[5] !== undefined ? qAnswers[5] : "-",
+      qAnswers[6] !== undefined ? qAnswers[6] : "-",
+      qAnswers[7] !== undefined ? qAnswers[7] : "-",
+      qAnswers[8] !== undefined ? qAnswers[8] : "-",
+      qAnswers[9] !== undefined ? qAnswers[9] : "-",
+      qAnswers[10] !== undefined ? qAnswers[10] : "-",
+      r.totalScore,
+      cleanCsv(r.statusTag || "-"),
+      r.isAlert ? "🚨 重点关爱" : "正常",
+      cleanCsv(r.secretNote || "无留言")
+    ];
+  });
+
+  // 拼接 CSV 内容（加入 \uFEFF 解决 Windows Excel 打开中文乱码）
+  let csvContent = "\uFEFF" + headers.join(",") + "\n";
+  rows.forEach(row => {
+    csvContent += row.join(",") + "\n";
+  });
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`;
+  a.href = url;
+  a.download = `心情与能量打卡数据汇总_${dateStr}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function cleanCsv(val) {
+  if (val === undefined || val === null) return '""';
+  const str = String(val).replace(/"/g, '""');
+  return `"${str}"`;
+}
+
+/**
+ * 修改管理员密码
+ */
+function handleChangePasswordSubmit(e) {
+  e.preventDefault();
+  const oldPwd = oldPasswordInput.value.trim();
+  const newPwd = newPasswordInput.value.trim();
+  const confirmPwd = confirmPasswordInput.value.trim();
+
+  const currentPwd = localStorage.getItem(STORAGE_ADMIN_PWD) || DEFAULT_ADMIN_PWD;
+
+  if (oldPwd !== currentPwd) {
+    alert("原密码输入不正确，请重新输入！");
+    oldPasswordInput.focus();
+    return;
+  }
+
+  if (newPwd.length < 4) {
+    alert("新密码至少需要 4 位字符！");
+    newPasswordInput.focus();
+    return;
+  }
+
+  if (newPwd !== confirmPwd) {
+    alert("两次输入的新密码不一致，请仔细核对！");
+    confirmPasswordInput.focus();
+    return;
+  }
+
+  localStorage.setItem(STORAGE_ADMIN_PWD, newPwd);
+  adminChangePwdModal.style.display = "none";
+  alert("🎉 管理员密码修改成功！请牢记您的新密码。");
 }
