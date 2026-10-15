@@ -248,7 +248,7 @@ def run_server():
     print(f"[*] Psychological Test Backend Server Started!")
     print(f"[*] Local URL: http://localhost:{PORT}")
     print(f"[*] SQLite DB: {DB_FILE}")
-    print(f"[*] Default Admin Password: admin123")
+    print(f"[*] Admin Password: 79797")
     print(f"[*] Press Ctrl+C to stop.")
     print("=" * 60)
     try:

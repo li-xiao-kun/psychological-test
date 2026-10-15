@@ -79,7 +79,8 @@ const STORAGE_USER_HISTORY = "psy_test_history_v1";
 const STORAGE_ADMIN_RECORDS = "psy_admin_records_v1";
 const STORAGE_ADMIN_PWD = "psy_admin_pwd_v1";
 const STORAGE_CLOUD_CONFIG = "psy_cloud_config_v1";
-const DEFAULT_ADMIN_PWD = "admin123";
+const DEFAULT_ADMIN_PWD = "79797"; // 专属管理员隐藏密码
+const DEFAULT_PUSHPLUS_TOKEN = "143c6148a4924128a3a85cdef9ed81c8"; // 用户微信推送 Token
 
 // 状态管理
 const userAnswers = {}; // { questionId: score }
@@ -87,7 +88,7 @@ let allAdminRecords = []; // 管理员视角下的全量答卷
 let isAdminLoggedIn = false;
 let currentBackendUrl = null; // 探测到的后端服务地址
 let cloudConfig = {
-  pushplusToken: "",
+  pushplusToken: DEFAULT_PUSHPLUS_TOKEN,
   lcAppId: "",
   lcAppKey: "",
   lcServerUrl: "",
@@ -204,13 +205,23 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 /**
- * 读取云端设置
+ * 读取云端设置与管理员凭证自愈
  */
 function loadCloudConfig() {
   try {
+    // 若本地留存过旧的默认密码 admin123，自动更正为 79797
+    const currentStoredPwd = localStorage.getItem(STORAGE_ADMIN_PWD);
+    if (!currentStoredPwd || currentStoredPwd === "admin123") {
+      localStorage.setItem(STORAGE_ADMIN_PWD, DEFAULT_ADMIN_PWD);
+    }
+
     const saved = localStorage.getItem(STORAGE_CLOUD_CONFIG);
     if (saved) {
       cloudConfig = Object.assign(cloudConfig, JSON.parse(saved));
+    }
+    // 确保默认启用用户的微信 Token
+    if (!cloudConfig.pushplusToken) {
+      cloudConfig.pushplusToken = DEFAULT_PUSHPLUS_TOKEN;
     }
   } catch (e) {}
 }
@@ -695,22 +706,48 @@ async function dispatchRecordToCloud(record) {
  * 发送 PushPlus 微信通知
  */
 function sendWechatNotification(record) {
-  const token = cloudConfig.pushplusToken.trim();
+  const token = (cloudConfig.pushplusToken || DEFAULT_PUSHPLUS_TOKEN).trim();
   if (!token) return;
 
   const alertBadge = record.isAlert ? "🚨【重点关爱预警】" : "🌿【心理打卡】";
   const title = `${alertBadge} ${record.name} 的测评报告 (${record.totalScore}分)`;
 
+  // 10道题得分明细
+  let questionsDetailHtml = "";
+  if (record.answers) {
+    questionsDetailHtml = `
+      <p style="margin-top:10px; margin-bottom:4px;"><strong>📋 10项身心电量答题明细：</strong></p>
+      <ul style="padding-left:18px; font-size:13px; color:#444; line-height:1.7;">
+        ${questionsData.map(q => {
+          const s = record.answers[q.id] !== undefined ? record.answers[q.id] : "-";
+          const desc = scoreOptions.find(o => o.score === s)?.desc || "";
+          const color = s >= 2 ? '#C53030' : '#2D6A4F';
+          return `<li>${q.category}：<strong style="color:${color};">${s}分</strong> <span style="color:#777;">(${desc})</span></li>`;
+        }).join("")}
+      </ul>
+      <hr style="border:none; border-top:1px dashed #CBD5E1; margin:12px 0;" />
+    `;
+  }
+
   // 组装格式化富文本
   let content = `
-    <h3>🌱 近期心情与能量小打卡新答卷</h3>
-    <p><strong>打卡人：</strong>${record.name} (${record.group})</p>
-    <p><strong>提交时间：</strong>${record.submitTime}</p>
-    <p><strong>身心总得分：</strong><span style="font-size:18px; color:#2D6A4F; font-weight:bold;">${record.totalScore}</span> / 30分</p>
-    <p><strong>状态评估：</strong>${record.statusTag} (${record.headline})</p>
-    <p><strong>是否高危预警：</strong>${record.isAlert ? '<span style="color:red;font-weight:bold;">🚨 是（建议主动沟通关爱）</span>' : '正常'}</p>
-    <hr/>
-    <p><strong>💬 树洞悄悄话：</strong><br/>${record.secretNote ? record.secretNote : '（未填写）'}</p>
+    <div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif; color:#2D3748;">
+      <h3 style="color:${record.isAlert ? '#C53030' : '#2D6A4F'}; margin-top:0;">🌱 近期心情与能量小打卡新答卷</h3>
+      <table style="width:100%; border-collapse:collapse; margin-bottom:12px; font-size:14px;">
+        <tr><td style="padding:4px 0; width:90px; color:#718096;"><strong>打卡人：</strong></td><td>${record.name} (${record.group})</td></tr>
+        <tr><td style="padding:4px 0; color:#718096;"><strong>打卡时间：</strong></td><td>${record.submitTime}</td></tr>
+        <tr><td style="padding:4px 0; color:#718096;"><strong>身心总得分：</strong></td><td><span style="font-size:20px; color:${record.isAlert ? '#C53030' : '#2D6A4F'}; font-weight:bold;">${record.totalScore}</span> / 30分</td></tr>
+        <tr><td style="padding:4px 0; color:#718096;"><strong>状态评估：</strong></td><td><strong>${record.statusTag}</strong> (${record.headline})</td></tr>
+        <tr><td style="padding:4px 0; color:#718096;"><strong>重点预警：</strong></td><td>${record.isAlert ? '<span style="color:#C53030; font-weight:bold; background:#FED7D7; padding:2px 8px; border-radius:4px;">🚨 触发重点关爱预警 (建议及时沟通)</span>' : '<span style="color:#2D6A4F;">正常</span>'}</td></tr>
+      </table>
+      <hr style="border:none; border-top:1px dashed #CBD5E1; margin:12px 0;" />
+      ${questionsDetailHtml}
+      <div style="background:#FFFDF9; border:1px solid #EAD8C0; border-radius:8px; padding:12px; margin-top:8px;">
+        <strong style="color:#5D4037;">💬 树洞悄悄话：</strong><br/>
+        <p style="margin:6px 0 0; color:#4A5568; font-style:italic; white-space:pre-wrap;">${record.secretNote ? record.secretNote : '（受测者未填写悄悄话）'}</p>
+      </div>
+      <p style="font-size:12px; color:#A0AEC0; text-align:center; margin-top:16px;">* 来自【🌱 近期心情与能量小打卡】实时推送系统</p>
+    </div>
   `;
 
   fetch("https://www.pushplus.plus/send", {
@@ -929,7 +966,7 @@ function handleAdminLoginSubmit(e) {
     openAdminDashboard();
   } else {
     loginErrorMsg.style.display = "block";
-    loginErrorMsg.textContent = "密码错误，请重新输入！（默认初始密码：admin123）";
+    loginErrorMsg.textContent = "密码错误，请重新输入！";
     adminPasswordInput.focus();
   }
 }
