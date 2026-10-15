@@ -1067,51 +1067,261 @@ body {
 /* ============================================================
    移动端响应式适配 (Media Query)
    ============================================================ */
+/* ============================================================
+   移动端全新交互与响应式深度重构 (Media Queries)
+   ============================================================ */
+
+/* 全端移动设备防误触与输入防缩放增强 */
+@media screen and (max-width: 768px) {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    -webkit-tap-highlight-color: transparent;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  input, textarea, select {
+    font-size: 16px !important; /* 彻底杜绝 iOS Safari 点击聚焦时的粗暴自动放大 */
+  }
+}
+
 @media (max-width: 640px) {
+  /* 顶部导航移动端紧凑布局 */
+  .top-nav {
+    border-bottom-width: 1px;
+  }
+  .nav-content {
+    padding: 8px 12px;
+  }
+  .brand {
+    gap: 6px;
+  }
+  .brand-icon {
+    font-size: 1.3rem;
+  }
+  .brand-title {
+    font-size: 0.96rem;
+    font-weight: 700;
+    letter-spacing: 0;
+  }
+  .nav-actions {
+    gap: 5px;
+  }
+  .nav-btn {
+    padding: 5px 9px;
+    font-size: 0.78rem;
+    gap: 4px;
+    border-radius: var(--radius-full);
+  }
+  .nav-btn-text {
+    display: inline-block;
+  }
+  
+  /* 主体容器微调 */
   .main-container {
-    padding: 0 12px;
-    margin-top: 14px;
+    padding: 0 10px;
+    margin: 14px auto 40px;
   }
   .card {
-    padding: 20px 16px;
-    border-radius: var(--radius-lg);
+    padding: 18px 14px;
+    border-radius: 18px;
+    margin-bottom: 16px;
+  }
+  .intro-card {
+    padding: 22px 14px 18px;
   }
   .main-title {
-    font-size: 1.45rem;
+    font-size: 1.38rem;
+    line-height: 1.3;
+  }
+  .subtitle {
+    font-size: 0.84rem;
+    margin-top: 4px;
+  }
+  .letter-box {
+    padding: 14px 12px;
+    margin: 14px 0 12px;
+    font-size: 0.88rem;
+    line-height: 1.65;
+  }
+  .letter-badge {
+    font-size: 0.92rem;
+    margin-bottom: 6px;
+  }
+  
+  /* 规则网格 */
+  .rule-box {
+    padding: 12px;
   }
   .rule-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
+    gap: 6px;
   }
+  .rule-item {
+    padding: 8px 6px;
+    border-radius: 10px;
+  }
+  .rule-score {
+    font-size: 0.95rem;
+  }
+  .rule-desc {
+    font-size: 0.74rem;
+    line-height: 1.3;
+  }
+  
+  /* 题目卡片 */
+  .question-card {
+    padding: 18px 14px;
+  }
+  .q-header {
+    margin-bottom: 10px;
+  }
+  .q-title-wrap {
+    gap: 6px;
+  }
+  .q-icon {
+    font-size: 1.25rem;
+  }
+  .q-category {
+    font-size: 1.02rem;
+  }
+  .q-status-badge {
+    font-size: 0.72rem;
+    padding: 2px 7px;
+  }
+  .q-text {
+    font-size: 0.94rem;
+    line-height: 1.68;
+    margin-bottom: 16px;
+  }
+  
+  /* 选项列表移动端单列宽触控手感 */
   .options-grid {
     grid-template-columns: 1fr;
-    gap: 10px;
+    gap: 9px;
   }
   .option-btn {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
     padding: 12px 14px;
+    min-height: 52px;
+    border-radius: 14px;
+    font-size: 0.88rem;
+    text-align: left;
+    border-width: 1.5px;
+    transition: all 0.15s ease;
   }
+  .option-btn:active {
+    transform: scale(0.98);
+  }
+  .option-indicator {
+    width: 30px;
+    height: 30px;
+    font-size: 0.88rem;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+  .option-score-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+  }
+  .option-score-desc {
+    font-size: 0.82rem;
+    line-height: 1.35;
+    color: var(--text-muted);
+  }
+  .option-btn.selected {
+    background: #EBF7EE !important;
+    border-color: var(--primary) !important;
+    box-shadow: 0 4px 12px rgba(45, 106, 79, 0.12);
+  }
+  
+  /* 个人信息与树洞 */
+  .user-info-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .tree-hole-textarea {
+    min-height: 110px;
+    padding: 12px;
+  }
+  
+  /* 提交按钮 */
   .btn-submit {
     width: 100%;
     padding: 14px 20px;
-    font-size: 1.05rem;
+    font-size: 1.06rem;
+    min-height: 52px;
+    border-radius: var(--radius-full);
+  }
+  
+  /* 报告与弹窗 */
+  .modal-dialog {
+    max-width: 95vw;
+    margin: auto;
+  }
+  .report-capture-card {
+    padding: 18px 14px;
   }
   .score-display {
     flex-direction: column;
     text-align: center;
-    gap: 12px;
+    gap: 10px;
+  }
+  .score-circle-wrap {
+    width: 105px;
+    height: 105px;
+  }
+  .score-val {
+    font-size: 2.6rem;
   }
   .score-meta {
     align-items: center;
   }
+  .energy-headline {
+    font-size: 1.15rem;
+  }
   .modal-buttons {
     flex-direction: column;
+    width: 100%;
+    gap: 8px;
   }
   .btn-action {
     width: 100%;
+    min-height: 44px;
+    font-size: 0.92rem;
+    justify-content: center;
   }
-  .nav-btn-text {
-    display: none;
+  
+  /* 个人打卡日记变身底部抽屉 Action Sheet */
+  .drawer-overlay {
+    align-items: flex-end;
+    justify-content: center;
   }
+  .drawer-content {
+    max-width: 100% !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: 85vh;
+    border-radius: 24px 24px 0 0;
+    padding: 16px 18px 24px;
+    animation: slideUpSheet 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .drawer-content::before {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 5px;
+    background: #CBD5E1;
+    border-radius: 9999px;
+    margin: 0 auto 12px;
+  }
+}
+
+@keyframes slideUpSheet {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
 
 /* 打印样式适配 */
@@ -1648,22 +1858,241 @@ body {
   font-size: 0.82rem;
 }
 
+/* ============================================================
+   管理员后台大屏在移动端（手机与平板）的沉浸式卡片化改造
+   ============================================================ */
 @media (max-width: 768px) {
-  .metrics-grid {
-    grid-template-columns: 1fr 1fr;
+  /* 弹窗全屏化 */
+  .admin-dashboard-overlay {
+    padding: 0 !important;
   }
-  .table-filter-bar {
+  .admin-dashboard-container {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    border: none !important;
+  }
+  
+  /* 顶部栏 */
+  .dashboard-header {
+    padding: 12px 14px;
     flex-direction: column;
     align-items: stretch;
+    gap: 10px;
+    position: relative;
+  }
+  .dashboard-brand {
+    justify-content: flex-start;
+    width: 100%;
+    padding-right: 36px;
+  }
+  .dashboard-brand h2 {
+    font-size: 1.05rem;
+    line-height: 1.3;
+  }
+  .dashboard-top-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+  }
+  .dashboard-top-actions .btn-dash {
+    padding: 7px 10px;
+    font-size: 0.78rem;
+    flex: 1 1 calc(50% - 6px);
+    justify-content: center;
+    border-radius: var(--radius-sm);
+  }
+  .dashboard-close-btn {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    font-size: 1.8rem;
+    color: var(--text-muted);
+  }
+  
+  /* 提示条 */
+  .sync-banner {
+    padding: 8px 12px;
+    font-size: 0.78rem;
+  }
+  
+  /* 统计看板 2x2 网格 */
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+    padding: 10px 12px !important;
+  }
+  .metric-card {
+    padding: 10px 12px;
+    gap: 10px;
+    border-radius: var(--radius-md);
+  }
+  .metric-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 1.15rem;
+    border-radius: 8px;
+  }
+  .metric-label {
+    font-size: 0.74rem;
+  }
+  .metric-value {
+    font-size: 1.25rem;
+  }
+  
+  /* 搜索与筛选栏 */
+  .table-filter-bar {
+    padding: 10px 12px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
   }
   .search-wrap {
     max-width: 100%;
   }
   .filter-controls {
+    display: flex;
     flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
   }
-  .user-info-grid {
-    grid-template-columns: 1fr;
+  .filter-select {
+    flex: 2;
+    min-width: 140px;
+  }
+  .filter-controls .btn-dash {
+    flex: 1;
+    padding: 7px 10px;
+    font-size: 0.8rem;
+    justify-content: center;
+  }
+  
+  /* 核心：将 9 列传统表格重构为移动端卡片式流式视图 (Card Feed) */
+  .admin-table-wrap {
+    padding: 6px 10px 24px;
+    background: #F8FAF9;
+  }
+  .admin-data-table, 
+  .admin-data-table tbody {
+    display: block;
+    width: 100%;
+  }
+  .admin-data-table thead {
+    display: none !important; /* 移动端隐藏表头 */
+  }
+  .admin-data-table tbody tr {
+    display: flex;
+    flex-direction: column;
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 16px;
+    padding: 14px;
+    margin-bottom: 12px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.03);
+    gap: 6px;
+    position: relative;
+    transition: transform var(--transition-fast);
+  }
+  .admin-data-table tbody tr.row-alert {
+    border-left: 5px solid #E53E3E;
+    background: #FFFBFB;
+  }
+  .admin-data-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 3px 0;
+    border: none;
+    font-size: 0.88rem;
+  }
+  .admin-data-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: #718096;
+    font-size: 0.78rem;
+  }
+  
+  /* 受测人姓名突出展示 */
+  .admin-data-table td.cell-name strong {
+    font-size: 1.05rem;
+    color: var(--primary);
+  }
+  .admin-data-table td.cell-score strong {
+    font-size: 1.15rem;
+    color: var(--primary);
+  }
+  
+  /* 树洞悄悄话留言气泡 */
+  .admin-data-table td.cell-note {
+    flex-direction: column;
+    align-items: flex-start;
+    margin-top: 4px;
+    padding-top: 6px;
+    border-top: 1px dashed #E2E8F0;
+  }
+  .admin-data-table td.cell-note .note-cell-text {
+    max-width: 100%;
+    white-space: normal;
+    line-height: 1.5;
+    color: #5D4037;
+    font-style: italic;
+    background: #FFFDF9;
+    border: 1px solid #EAD8C0;
+    padding: 8px 12px;
+    border-radius: 10px;
+    width: 100%;
+    margin-top: 4px;
+    font-size: 0.84rem;
+  }
+  
+  /* 操作按钮大触控栏 */
+  .admin-data-table td.cell-actions {
+    margin-top: 8px;
+    padding-top: 10px;
+    border-top: 1px solid #EDF2F7;
+    display: flex;
+    gap: 10px;
+    width: 100%;
+  }
+  .admin-data-table td.cell-actions::before {
+    display: none !important;
+  }
+  .admin-data-table td.cell-actions .btn-table-action {
+    flex: 1;
+    padding: 9px 0;
+    text-align: center;
+    font-size: 0.88rem;
+    margin: 0;
+    border-radius: 8px;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  /* 答卷详细查看弹窗移动端适配 */
+  .admin-detail-dialog {
+    max-width: 95vw !important;
+    margin: auto;
+  }
+  .detail-card {
+    padding: 18px 14px !important;
+  }
+  .detail-meta-grid {
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
+    font-size: 0.82rem !important;
+  }
+  .detail-q-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  
+  /* 云端同步弹窗移动端适配 */
+  .cloud-settings-card {
+    padding: 18px 14px !important;
   }
 }
 

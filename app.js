@@ -1429,17 +1429,17 @@ function filterAndRenderAdminTable() {
 
     return `
       <tr class="${r.isAlert ? 'row-alert' : ''}">
-        <td><strong>${idx + 1}</strong></td>
-        <td><strong>${escapeHtml(r.name || "神秘小天使")}</strong></td>
-        <td>${escapeHtml(r.group || "未填写")}</td>
-        <td><small style="color:#666;">${r.submitTime || "-"}</small></td>
-        <td><strong style="font-size:1.05rem; color:var(--primary);">${r.totalScore}</strong> <small>/30</small></td>
-        <td><span class="table-tag ${tagClass}">${escapeHtml(r.statusTag || "评测中")}</span></td>
-        <td>${alertHtml}</td>
-        <td><div class="note-cell-text" title="${escapeHtml(r.secretNote || '')}">${noteText}</div></td>
-        <td class="text-center">
-          <button class="btn-table-action" onclick="viewRecordDetail('${r.id}')">详情</button>
-          <button class="btn-table-action btn-table-del" onclick="deleteRecord('${r.id}')">删除</button>
+        <td data-label="序号" class="cell-num"><strong>#${idx + 1}</strong></td>
+        <td data-label="受测人" class="cell-name"><strong>${escapeHtml(r.name || "神秘小天使")}</strong></td>
+        <td data-label="班级/组别" class="cell-group">${escapeHtml(r.group || "未填写")}</td>
+        <td data-label="打卡时间" class="cell-time"><small style="color:#666;">${r.submitTime || "-"}</small></td>
+        <td data-label="总得分数" class="cell-score"><strong style="font-size:1.05rem; color:var(--primary);">${r.totalScore}</strong> <small>/30分</small></td>
+        <td data-label="状态等级" class="cell-level"><span class="table-tag ${tagClass}">${escapeHtml(r.statusTag || "评测中")}</span></td>
+        <td data-label="风险预警" class="cell-alert">${alertHtml}</td>
+        <td data-label="树洞留言" class="cell-note"><div class="note-cell-text" title="${escapeHtml(r.secretNote || '')}">${noteText}</div></td>
+        <td class="text-center cell-actions">
+          <button class="btn-table-action" onclick="viewRecordDetail('${r.id}')">📋 详情</button>
+          <button class="btn-table-action btn-table-del" onclick="deleteRecord('${r.id}')">🗑️ 删除</button>
         </td>
       </tr>
     `;
