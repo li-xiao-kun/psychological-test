@@ -8,13 +8,12 @@
   <meta name="theme-color" content="#EBF7EE">
   <!-- 预加载图标与字体 -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261015_3">
+  <link rel="stylesheet" href="style.css?v=20261015_supabase">
   <!-- 用于报告卡片导出的轻量级 html2canvas 支持 -->
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-  <!-- 用于全网多端跨设备云存储同步的官方轻量 SDK -->
-  <script src="https://cdn.jsdelivr.net/npm/leancloud-storage@4.15.0/dist/av-min.js"></script>
+  <!-- 引入 Supabase 官方全端数据库 SDK，支持跨设备云端实时同步 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <!-- 背景漂浮装饰光斑 -->
@@ -330,13 +329,13 @@
             <h2>心情与能量小打卡 · 后台数据管理中心</h2>
             <div class="backend-status-pill">
               <span id="backendStatusDot" class="status-dot dot-green"></span>
-              <span id="backendStatusText">后台数据中心已就绪 (本地安全存储)</span>
+              <span id="backendStatusText">Supabase 全球云端数据库已连接</span>
             </div>
           </div>
         </div>
         <div class="dashboard-top-actions">
-          <button id="btnOpenCloudSync" class="btn-dash btn-cloud" title="配置微信实时通知或云数据库">
-            <span>⚙️ 跨设备同步/微信提醒</span>
+          <button id="btnOpenCloudSync" class="btn-dash btn-cloud" title="配置 Supabase 云数据库或微信提醒">
+            <span>⚙️ 云端数据库/同步配置</span>
           </button>
           <button id="btnExportCSV" class="btn-dash btn-export" title="导出 Excel/CSV 报表">
             <span>📥 导出 Excel / CSV 表格</span>
@@ -351,11 +350,32 @@
         </div>
       </header>
 
+      <!-- Supabase 初次建表提示卡片（当检测到表尚未创建时自动显示） -->
+      <div id="supabaseSetupBanner" class="supabase-setup-banner" style="display: none;">
+        <div class="setup-banner-left">
+          <span class="setup-icon">⚡</span>
+          <div>
+            <div class="setup-title">Supabase 云数据库连接提示：尚未建立 <code>quiz_records</code> 数据表</div>
+            <div class="setup-desc">
+              只需 10 秒：在 Supabase 控制台的 SQL Editor 中粘贴并运行建表脚本，全网跨设备数据即可全自动汇总！
+            </div>
+          </div>
+        </div>
+        <div class="setup-banner-actions">
+          <button id="btnCopySupabaseSql" class="btn-setup-action btn-copy-sql">
+            <span>📋 一键复制建表 SQL</span>
+          </button>
+          <a href="https://supabase.com/dashboard/project/nshrxfsceujjvpkysbmm/sql/new" target="_blank" rel="noopener noreferrer" class="btn-setup-action btn-open-link">
+            <span>🚀 打开 Supabase SQL 编辑器</span>
+          </a>
+        </div>
+      </div>
+
       <!-- 跨设备同步状态提示条 -->
       <div id="syncBanner" class="sync-banner">
-        <span class="sync-banner-icon">📡</span>
+        <span class="sync-banner-icon">☁️</span>
         <span id="syncBannerText" class="sync-banner-text">
-          💡 <strong>跨设备提醒</strong>：若想在自己的手机/微信上实时收到其他人的打卡答卷，请点击上方 <strong>「⚙️ 跨设备同步/微信提醒」</strong> 开启配置！
+          💡 <strong>云端实时同步已激活</strong>：任何人在任何设备/手机上打卡完成，数据将全自动同步至 Supabase 云数据库，点击下方「刷新」即可实时查看！
         </span>
       </div>
 
@@ -520,10 +540,42 @@
           在 GitHub Pages 静态托管下，若想让<strong>别人在他们的手机上答完题后，你也能实时看到或收到数据</strong>，请选择以下任一方式（支持同时开启）：
         </p>
 
-        <!-- 方案一：微信实时秒推 -->
+        <!-- 方案一：Supabase 全球云端数据库 -->
         <div class="sync-option-card">
           <div class="sync-opt-header">
-            <span class="sync-opt-badge badge-wechat">📱 方案一：微信实时推送通知（极力推荐）</span>
+            <span class="sync-opt-badge badge-supabase">☁️ 方案一：Supabase 云端数据库（主力推荐 · 自动跨设备汇聚）</span>
+            <span class="sync-opt-tag" style="background:#D1FAE5; color:#065F46;">已预置接通</span>
+          </div>
+          <p class="sync-opt-desc">
+            全网受测者在手机/电脑答题完成后，数据毫秒级实时写入云端 <code>quiz_records</code> 表。你在任何设备登录管理后台均可一键查看、导出 Excel。
+          </p>
+          <div class="user-info-grid" style="margin-top: 8px;">
+            <div class="input-group">
+              <label for="supabaseUrl">Supabase Project URL：</label>
+              <input type="text" id="supabaseUrl" class="text-input" placeholder="https://xxxx.supabase.co">
+            </div>
+            <div class="input-group">
+              <label for="supabaseKey">Supabase Publishable/Anon Key：</label>
+              <input type="text" id="supabaseKey" class="text-input" placeholder="sb_publishable_xxxx 或 anon key">
+            </div>
+          </div>
+          <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
+            <button type="button" id="btnTestSupabase" class="btn-action btn-secondary" style="font-size: 0.82rem; padding: 6px 12px;">
+              🔍 测试云端连接
+            </button>
+            <button type="button" id="btnCopySqlModal" class="btn-action btn-secondary" style="font-size: 0.82rem; padding: 6px 12px;">
+              📋 复制建表 SQL
+            </button>
+            <a href="https://supabase.com/dashboard/project/nshrxfsceujjvpkysbmm/sql/new" target="_blank" rel="noopener noreferrer" class="btn-action btn-secondary" style="font-size: 0.82rem; padding: 6px 12px; text-decoration: none;">
+              🚀 打开 SQL Editor
+            </a>
+          </div>
+        </div>
+
+        <!-- 方案二：微信实时秒推（可选辅助） -->
+        <div class="sync-option-card" style="margin-top: 16px;">
+          <div class="sync-opt-header">
+            <span class="sync-opt-badge badge-wechat">📱 方案二：微信实时推送通知（可选辅助）</span>
             <span class="sync-opt-tag">零代码 · 手机即刻响铃</span>
           </div>
           <p class="sync-opt-desc">
@@ -533,43 +585,20 @@
             <label for="pushplusToken">PushPlus (推送加) Token：</label>
             <input type="text" id="pushplusToken" class="text-input" placeholder="粘贴你的 PushPlus Token">
           </div>
-          <p class="sync-help-text">
-            👉 <strong>如何获取（免费 30 秒）：</strong>微信搜索关注公众号 <code>pushplus推送加</code> -> 点击“个人中心”即可复制你的专属 Token。
-          </p>
-        </div>
-
-        <!-- 方案二：LeanCloud 云数据库 -->
-        <div class="sync-option-card" style="margin-top: 16px;">
-          <div class="sync-opt-header">
-            <span class="sync-opt-badge badge-cloud">☁️ 方案二：LeanCloud 云端数据库（网页表格全量汇聚）</span>
-            <span class="sync-opt-tag">集中建档 · 支持导出 Excel</span>
-          </div>
-          <p class="sync-opt-desc">
-            所有人在全国各地提交的答卷实时汇聚在同一个云端表，你在任何电脑/手机打开本管理后台即可一键刷新查看、搜索与下载 Excel 报表。
-          </p>
-          <div class="user-info-grid" style="margin-top: 8px;">
-            <div class="input-group">
-              <label for="lcAppId">LeanCloud AppID：</label>
-              <input type="text" id="lcAppId" class="text-input" placeholder="你的 LeanCloud AppID">
-            </div>
-            <div class="input-group">
-              <label for="lcAppKey">LeanCloud AppKey：</label>
-              <input type="text" id="lcAppKey" class="text-input" placeholder="你的 LeanCloud AppKey">
-            </div>
-          </div>
-          <div class="input-group" style="margin-top: 8px;">
-            <label for="lcServerUrl">REST API 服务器地址（国内版必填，国际版可留空）：</label>
-            <input type="text" id="lcServerUrl" class="text-input" placeholder="例如：https://xxxx.example.com">
+          <div style="margin-top: 8px;">
+            <button type="button" id="btnTestPushNotification" class="btn-action btn-secondary" style="font-size: 0.82rem; padding: 6px 12px;">
+              🔔 发送一条微信测试通知
+            </button>
           </div>
         </div>
 
         <!-- 方案三：自建服务器 API -->
         <div class="sync-option-card" style="margin-top: 16px;">
           <div class="sync-opt-header">
-            <span class="sync-opt-badge badge-server">🖥️ 方案三：自定义服务器 API</span>
+            <span class="sync-opt-badge badge-server">🖥️ 方案三：自定义服务器 API（选填）</span>
           </div>
           <p class="sync-opt-desc">
-            若你在云服务器或局域网运行了本项目的 <code>server.py</code>，填入公网接口地址即可自动对接。
+            若你在云服务器或局域网运行了本项目的 <code>server.py</code>，填入公网接口地址即可自动对接 SQLite。
           </p>
           <div class="input-group" style="margin-top: 8px;">
             <label for="customApiUrl">自定义 API 服务地址：</label>
@@ -579,7 +608,6 @@
 
         <div class="modal-buttons" style="margin-top: 20px;">
           <button id="btnSaveCloudSettings" class="btn-action btn-primary">💾 保存同步配置</button>
-          <button id="btnTestPushNotification" class="btn-action btn-secondary">🔔 发送一条微信测试通知</button>
           <button id="btnCancelCloudSettings" class="btn-action btn-close">取消</button>
         </div>
       </div>
@@ -594,6 +622,6 @@
     </div>
   </footer>
 
-  <script src="app.js?v=20261015_3"></script>
+  <script src="app.js?v=20261015_supabase"></script>
 </body>
 </html>

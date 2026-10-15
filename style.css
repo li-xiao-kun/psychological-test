@@ -1730,6 +1730,7 @@ body {
   font-weight: 700;
   font-size: 0.94rem;
 }
+.badge-supabase { color: #10B981; }
 .badge-wechat { color: #059669; }
 .badge-cloud { color: #2563EB; }
 .badge-server { color: #7C3AED; }
@@ -1758,6 +1759,105 @@ body {
   padding: 2px 6px;
   border-radius: 4px;
   font-weight: 600;
+}
+
+/* Supabase 数据库初次建表提示卡片 */
+.supabase-setup-banner {
+  background: #FFFBEB;
+  border: 1px solid #FCD34D;
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  animation: fadeIn 0.3s ease;
+}
+
+.setup-banner-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+}
+
+.setup-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.setup-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #92400E;
+  margin-bottom: 4px;
+}
+
+.setup-title code {
+  background: #FEF3C7;
+  color: #B45309;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+
+.setup-desc {
+  font-size: 0.82rem;
+  color: #78350F;
+  line-height: 1.5;
+}
+
+.setup-banner-actions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.btn-setup-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all var(--transition-fast);
+  border: none;
+}
+
+.btn-copy-sql {
+  background: #D97706;
+  color: #FFFFFF;
+}
+
+.btn-copy-sql:hover {
+  background: #B45309;
+  transform: translateY(-1px);
+}
+
+.btn-open-link {
+  background: #F3F4F6;
+  color: #1F2937;
+  border: 1px solid #D1D5DB;
+}
+
+.btn-open-link:hover {
+  background: #E5E7EB;
+  border-color: #9CA3AF;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 768px) {
+  .supabase-setup-banner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .setup-banner-actions {
+    flex-direction: column;
+  }
 }
 
 

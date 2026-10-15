@@ -81,6 +81,38 @@ const STORAGE_ADMIN_PWD = "psy_admin_pwd_v1";
 const STORAGE_CLOUD_CONFIG = "psy_cloud_config_v1";
 const DEFAULT_ADMIN_PWD = "79797"; // 专属管理员隐藏密码
 const DEFAULT_PUSHPLUS_TOKEN = "143c6148a4924128a3a85cdef9ed81c8"; // 用户微信推送 Token
+const DEFAULT_SUPABASE_URL = "https://nshrxfsceujjvpkysbmm.supabase.co";
+const DEFAULT_SUPABASE_KEY = "sb_publishable_0B3yvBpnoc-KAdxND87RXw_MQywLA9D";
+
+// Supabase 初始化 SQL 脚本（供一键复制建表）
+const SUPABASE_SCHEMA_SQL = `-- ========================================================
+-- 🌱 心情与能量小打卡 - Supabase 数据表与安全策略初始化
+-- ========================================================
+create table if not exists public.quiz_records (
+    id text primary key,
+    name text not null,
+    class_group text,
+    total_score integer not null,
+    battery_level integer default 100,
+    status_tag text,
+    headline text,
+    is_alert boolean default false,
+    secret_note text,
+    submit_time text,
+    answers jsonb,
+    created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table public.quiz_records enable row level security;
+
+drop policy if exists "允许匿名提交" on public.quiz_records;
+create policy "允许匿名提交" on public.quiz_records for insert to anon, authenticated, service_role with check (true);
+
+drop policy if exists "允许读取记录" on public.quiz_records;
+create policy "允许读取记录" on public.quiz_records for select to anon, authenticated, service_role using (true);
+
+drop policy if exists "允许删除记录" on public.quiz_records;
+create policy "允许删除记录" on public.quiz_records for delete to anon, authenticated, service_role using (true);`;
 
 // 状态管理
 const userAnswers = {}; // { questionId: score }
@@ -88,10 +120,9 @@ let allAdminRecords = []; // 管理员视角下的全量答卷
 let isAdminLoggedIn = false;
 let currentBackendUrl = null; // 探测到的后端服务地址
 let cloudConfig = {
+  supabaseUrl: DEFAULT_SUPABASE_URL,
+  supabaseKey: DEFAULT_SUPABASE_KEY,
   pushplusToken: DEFAULT_PUSHPLUS_TOKEN,
-  lcAppId: "",
-  lcAppKey: "",
-  lcServerUrl: "",
   customApiUrl: ""
 };
 
@@ -181,7 +212,7 @@ const newPasswordInput = document.getElementById("newPassword");
 const confirmPasswordInput = document.getElementById("confirmPassword");
 const btnCancelChangePwd = document.getElementById("btnCancelChangePwd");
 
-// 跨设备云端设置弹窗
+// 跨设备云端设置与 Supabase 相关 DOM
 const cloudSettingsModal = document.getElementById("cloudSettingsModal");
 const btnOpenCloudSync = document.getElementById("btnOpenCloudSync");
 const btnCloseCloudModal = document.getElementById("btnCloseCloudModal");
@@ -189,9 +220,12 @@ const btnCancelCloudSettings = document.getElementById("btnCancelCloudSettings")
 const btnSaveCloudSettings = document.getElementById("btnSaveCloudSettings");
 const btnTestPushNotification = document.getElementById("btnTestPushNotification");
 const pushplusTokenInput = document.getElementById("pushplusToken");
-const lcAppIdInput = document.getElementById("lcAppId");
-const lcAppKeyInput = document.getElementById("lcAppKey");
-const lcServerUrlInput = document.getElementById("lcServerUrl");
+const supabaseUrlInput = document.getElementById("supabaseUrl");
+const supabaseKeyInput = document.getElementById("supabaseKey");
+const btnTestSupabase = document.getElementById("btnTestSupabase");
+const btnCopySqlModal = document.getElementById("btnCopySqlModal");
+const supabaseSetupBanner = document.getElementById("supabaseSetupBanner");
+const btnCopySupabaseSql = document.getElementById("btnCopySupabaseSql");
 const customApiUrlInput = document.getElementById("customApiUrl");
 
 // 初始化
@@ -201,7 +235,7 @@ document.addEventListener("DOMContentLoaded", () => {
   bindEvents();
   updateProgress();
   detectBackendServer();
-  initLeanCloud();
+  initSupabase();
 });
 
 /**
@@ -219,32 +253,41 @@ function loadCloudConfig() {
     if (saved) {
       cloudConfig = Object.assign(cloudConfig, JSON.parse(saved));
     }
-    // 确保默认启用用户的微信 Token
-    if (!cloudConfig.pushplusToken) {
-      cloudConfig.pushplusToken = DEFAULT_PUSHPLUS_TOKEN;
-    }
+    // 确保默认启用 Supabase 与微信 Token
+    if (!cloudConfig.supabaseUrl) cloudConfig.supabaseUrl = DEFAULT_SUPABASE_URL;
+    if (!cloudConfig.supabaseKey) cloudConfig.supabaseKey = DEFAULT_SUPABASE_KEY;
+    if (!cloudConfig.pushplusToken) cloudConfig.pushplusToken = DEFAULT_PUSHPLUS_TOKEN;
   } catch (e) {}
 }
 
 /**
- * 初始化 LeanCloud SDK
+ * 获取或创建 Supabase Client
  */
-function initLeanCloud() {
-  if (cloudConfig.lcAppId && cloudConfig.lcAppKey && typeof AV !== "undefined") {
+let supabaseClient = null;
+function getSupabaseClient() {
+  const url = (cloudConfig.supabaseUrl || DEFAULT_SUPABASE_URL).trim();
+  const key = (cloudConfig.supabaseKey || DEFAULT_SUPABASE_KEY).trim();
+  if (!url || !key) return null;
+  
+  if (supabaseClient && supabaseClient._savedUrl === url && supabaseClient._savedKey === key) {
+    return supabaseClient;
+  }
+  
+  if (window.supabase && typeof window.supabase.createClient === "function") {
     try {
-      const configObj = {
-        appId: cloudConfig.lcAppId.trim(),
-        appKey: cloudConfig.lcAppKey.trim()
-      };
-      if (cloudConfig.lcServerUrl && cloudConfig.lcServerUrl.trim()) {
-        configObj.serverURL = cloudConfig.lcServerUrl.trim();
-      }
-      AV.init(configObj);
-      console.log("LeanCloud SDK 初始化成功");
+      supabaseClient = window.supabase.createClient(url, key);
+      supabaseClient._savedUrl = url;
+      supabaseClient._savedKey = key;
+      console.log("Supabase JS SDK 客户端初始化成功");
     } catch (e) {
-      console.warn("LeanCloud 初始化失败:", e);
+      console.warn("Supabase 客户端初始化异常:", e);
     }
   }
+  return supabaseClient;
+}
+
+function initSupabase() {
+  getSupabaseClient();
 }
 
 /**
@@ -371,11 +414,20 @@ function bindEvents() {
   btnCancelCloudSettings.addEventListener("click", () => cloudSettingsModal.style.display = "none");
   btnSaveCloudSettings.addEventListener("click", saveCloudSettings);
   btnTestPushNotification.addEventListener("click", testPushNotification);
+
+  if (btnCopySupabaseSql) {
+    btnCopySupabaseSql.addEventListener("click", copySupabaseSqlToClipboard);
+  }
+  if (btnCopySqlModal) {
+    btnCopySqlModal.addEventListener("click", copySupabaseSqlToClipboard);
+  }
+  if (btnTestSupabase) {
+    btnTestSupabase.addEventListener("click", testSupabaseConnection);
+  }
 }
 
 /**
- * 探测独立后端服务 (Python server.py)
- * 仅在本地开发或明确填写了服务器地址时探测，避免在静态托管中产生 404/Refused 控制台日志
+ * 探测独立后端服务 (Python server.py 或 Supabase 状态)
  */
 async function detectBackendServer() {
   const isLocalHost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
@@ -401,8 +453,8 @@ async function detectBackendServer() {
     } catch (err) {}
   }
 
-  if (cloudConfig.lcAppId) {
-    updateBackendStatusBadge("leancloud");
+  if (cloudConfig.supabaseUrl) {
+    updateBackendStatusBadge("supabase");
   } else if (cloudConfig.pushplusToken) {
     updateBackendStatusBadge("wechat");
   } else {
@@ -410,15 +462,15 @@ async function detectBackendServer() {
   }
 }
 
-function updateBackendStatusBadge(mode) {
-  if (mode === "server") {
+function updateBackendStatusBadge(mode, customText) {
+  if (mode === "supabase") {
+    backendStatusDot.className = "status-dot dot-green";
+    backendStatusText.textContent = customText || "Supabase 全球云端数据库已连接";
+    syncBannerText.innerHTML = "☁️ <strong>云端实时同步已激活</strong>：任何人在任何设备/手机上打卡完成，数据将全自动同步至 Supabase 云数据库，点击下方「刷新」即可实时查看！";
+  } else if (mode === "server") {
     backendStatusDot.className = "status-dot dot-green";
     backendStatusText.textContent = "已连接独立服务器 (实时 SQLite 数据库)";
     syncBannerText.innerHTML = "🟢 <strong>自建服务器已连接</strong>：所有答卷正实时同步至你的 SQLite 数据库。";
-  } else if (mode === "leancloud") {
-    backendStatusDot.className = "status-dot dot-blue";
-    backendStatusText.textContent = "已连接 LeanCloud 云数据库 (全网实时互通)";
-    syncBannerText.innerHTML = "☁️ <strong>云数据库已启用</strong>：任何人在任何手机上答题，都将实时汇聚在下方表格中！";
   } else if (mode === "wechat") {
     backendStatusDot.className = "status-dot dot-green";
     backendStatusText.textContent = "已绑定微信实时提醒 (PushPlus)";
@@ -426,9 +478,10 @@ function updateBackendStatusBadge(mode) {
   } else {
     backendStatusDot.className = "status-dot dot-blue";
     backendStatusText.textContent = "单机本地模式 (未配置跨设备云端)";
-    syncBannerText.innerHTML = "💡 <strong>跨设备提醒</strong>：若想在手机微信收到答卷，或在后台查看所有人记录，请点击上方 <strong>「⚙️ 跨设备同步/微信提醒」</strong> 配置！";
+    syncBannerText.innerHTML = "💡 <strong>跨设备提醒</strong>：若想在手机微信收到答卷，或在后台查看所有人记录，请点击上方 <strong>「⚙️ 云端数据库/同步配置」</strong> 查看！";
   }
 }
+
 
 /**
  * 处理选项被选择
@@ -663,37 +716,26 @@ function saveToAdminPool(record) {
 }
 
 /**
- * 跨网络多通道分发（让管理员在微信或云端表格实时看到）
+ * 跨网络多通道分发（全网答卷实时自动同步至 Supabase 云数据库）
  */
 async function dispatchRecordToCloud(record) {
-  // 1. 微信实时推送 (PushPlus)
-  if (cloudConfig.pushplusToken) {
-    sendWechatNotification(record);
+  // 1. Supabase 全球云端数据库（全网首选主存储）
+  try {
+    await saveRecordToSupabase(record);
+  } catch (err) {
+    console.warn("Supabase 同步处理异常:", err);
   }
 
-  // 2. LeanCloud 云数据库存储
-  if (cloudConfig.lcAppId && typeof AV !== "undefined") {
+  // 2. 微信实时推送 (PushPlus，选填通道，安全静默捕获异常)
+  if (cloudConfig.pushplusToken) {
     try {
-      const QuizRecord = AV.Object.extend("QuizRecord");
-      const obj = new QuizRecord();
-      obj.set("recordId", record.id);
-      obj.set("name", record.name);
-      obj.set("group", record.group);
-      obj.set("totalScore", record.totalScore);
-      obj.set("statusTag", record.statusTag);
-      obj.set("headline", record.headline);
-      obj.set("isAlert", record.isAlert);
-      obj.set("secretNote", record.secretNote);
-      obj.set("submitTime", record.submitTime);
-      obj.set("answers", record.answers);
-      await obj.save();
-      console.log("已实时同步至 LeanCloud 云数据库");
+      sendWechatNotification(record);
     } catch (e) {
-      console.warn("LeanCloud 保存异常:", e);
+      console.warn("微信推送捕获异常:", e);
     }
   }
 
-  // 3. 自建独立服务器
+  // 3. 自建独立服务器 (选填通道)
   const backendTarget = currentBackendUrl || cloudConfig.customApiUrl;
   if (backendTarget) {
     try {
@@ -704,6 +746,235 @@ async function dispatchRecordToCloud(record) {
       });
       console.log("已实时同步至自建服务器 SQLite 数据库");
     } catch (err) {}
+  }
+}
+
+/**
+ * 将答卷实时写入 Supabase 云端数据库
+ */
+async function saveRecordToSupabase(record) {
+  const url = (cloudConfig.supabaseUrl || DEFAULT_SUPABASE_URL).trim().replace(/\/+$/, "");
+  const key = (cloudConfig.supabaseKey || DEFAULT_SUPABASE_KEY).trim();
+  if (!url || !key) return false;
+
+  const payload = {
+    id: record.id,
+    name: record.name,
+    class_group: record.group,
+    total_score: record.totalScore,
+    battery_level: record.batteryLevel || 100,
+    status_tag: record.statusTag,
+    headline: record.headline,
+    is_alert: Boolean(record.isAlert),
+    secret_note: record.secretNote || "",
+    submit_time: record.submitTime,
+    answers: record.answers
+  };
+
+  // 方式一：官方 Supabase JS SDK
+  const client = getSupabaseClient();
+  if (client) {
+    try {
+      const { data, error } = await client.from("quiz_records").insert([payload]);
+      if (!error) {
+        console.log("✅ 成功通过 Supabase JS SDK 写入云端数据库");
+        return true;
+      }
+      console.warn("Supabase SDK 写入提示:", error.message || error);
+    } catch (err) {
+      console.warn("Supabase SDK 写入捕获异常:", err);
+    }
+  }
+
+  // 方式二：原生 REST API 保底
+  try {
+    const res = await fetch(`${url}/rest/v1/quiz_records`, {
+      method: "POST",
+      headers: {
+        "apikey": key,
+        "Authorization": `Bearer ${key}`,
+        "Content-Type": "application/json",
+        "Prefer": "return=minimal"
+      },
+      body: JSON.stringify([payload])
+    });
+    if (res.ok) {
+      console.log("✅ 成功通过 Supabase REST API 写入云端数据库");
+      return true;
+    } else {
+      const txt = await res.text();
+      console.warn("Supabase REST 接口返回状态:", res.status, txt);
+    }
+  } catch (err) {
+    console.warn("Supabase REST 请求失败:", err);
+  }
+  return false;
+}
+
+/**
+ * 从 Supabase 查询所有答卷记录
+ */
+async function fetchRecordsFromSupabase() {
+  const url = (cloudConfig.supabaseUrl || DEFAULT_SUPABASE_URL).trim().replace(/\/+$/, "");
+  const key = (cloudConfig.supabaseKey || DEFAULT_SUPABASE_KEY).trim();
+  if (!url || !key) return { records: null, error: "未配置 Supabase" };
+
+  // 方式一：官方 Supabase JS SDK
+  const client = getSupabaseClient();
+  if (client) {
+    try {
+      const { data, error } = await client
+        .from("quiz_records")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (!error && Array.isArray(data)) {
+        return { records: mapSupabaseRecords(data), error: null };
+      }
+      if (error) {
+        return { records: null, error: error };
+      }
+    } catch (err) {
+      console.warn("Supabase SDK 查询异常:", err);
+    }
+  }
+
+  // 方式二：原生 REST API 保底
+  try {
+    const res = await fetch(`${url}/rest/v1/quiz_records?select=*&order=created_at.desc`, {
+      headers: {
+        "apikey": key,
+        "Authorization": `Bearer ${key}`
+      }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return { records: mapSupabaseRecords(data), error: null };
+    } else {
+      const errJson = await res.json().catch(() => ({}));
+      return { records: null, error: errJson };
+    }
+  } catch (err) {
+    return { records: null, error: err };
+  }
+}
+
+/**
+ * 从 Supabase 删除单条记录
+ */
+async function deleteRecordFromSupabase(recordId) {
+  const url = (cloudConfig.supabaseUrl || DEFAULT_SUPABASE_URL).trim().replace(/\/+$/, "");
+  const key = (cloudConfig.supabaseKey || DEFAULT_SUPABASE_KEY).trim();
+  if (!url || !key) return;
+
+  const client = getSupabaseClient();
+  if (client) {
+    try {
+      const { error } = await client.from("quiz_records").delete().eq("id", recordId);
+      if (!error) return;
+    } catch (e) {}
+  }
+
+  try {
+    await fetch(`${url}/rest/v1/quiz_records?id=eq.${encodeURIComponent(recordId)}`, {
+      method: "DELETE",
+      headers: {
+        "apikey": key,
+        "Authorization": `Bearer ${key}`
+      }
+    });
+  } catch (e) {}
+}
+
+/**
+ * 从 Supabase 清空全部记录
+ */
+async function clearAllRecordsFromSupabase() {
+  const url = (cloudConfig.supabaseUrl || DEFAULT_SUPABASE_URL).trim().replace(/\/+$/, "");
+  const key = (cloudConfig.supabaseKey || DEFAULT_SUPABASE_KEY).trim();
+  if (!url || !key) return;
+
+  const client = getSupabaseClient();
+  if (client) {
+    try {
+      const { error } = await client.from("quiz_records").delete().neq("id", "___none___");
+      if (!error) return;
+    } catch (e) {}
+  }
+
+  try {
+    await fetch(`${url}/rest/v1/quiz_records?id=not.is.null`, {
+      method: "DELETE",
+      headers: {
+        "apikey": key,
+        "Authorization": `Bearer ${key}`
+      }
+    });
+  } catch (e) {}
+}
+
+/**
+ * 数据字段统一映射规范
+ */
+function mapSupabaseRecords(data) {
+  if (!Array.isArray(data)) return [];
+  return data.map(r => ({
+    id: r.id,
+    name: r.name || "神秘小天使",
+    group: r.class_group || r.group || "未填写",
+    totalScore: r.total_score !== undefined ? r.total_score : 0,
+    batteryLevel: r.battery_level !== undefined ? r.battery_level : 100,
+    statusTag: r.status_tag || "评测完成",
+    headline: r.headline || "",
+    isAlert: Boolean(r.is_alert),
+    secretNote: r.secret_note || "",
+    submitTime: r.submit_time || "",
+    answers: r.answers || {}
+  }));
+}
+
+/**
+ * 复制建表 SQL 脚本到剪贴板
+ */
+function copySupabaseSqlToClipboard() {
+  navigator.clipboard.writeText(SUPABASE_SCHEMA_SQL).then(() => {
+    alert("✅ 建表 SQL 已成功复制到剪贴板！\n\n请在 Supabase 控制台的 SQL Editor 中粘贴并点击绿色的“Run”按钮执行即可！🚀");
+  }).catch(() => {
+    prompt("请全选复制以下 SQL 语句：", SUPABASE_SCHEMA_SQL);
+  });
+}
+
+/**
+ * 测试 Supabase 云端连接与表状态
+ */
+async function testSupabaseConnection() {
+  btnTestSupabase.disabled = true;
+  btnTestSupabase.textContent = "⏳ 正在测试连接...";
+  try {
+    const url = (supabaseUrlInput.value.trim() || cloudConfig.supabaseUrl || DEFAULT_SUPABASE_URL).replace(/\/+$/, "");
+    const key = (supabaseKeyInput.value.trim() || cloudConfig.supabaseKey || DEFAULT_SUPABASE_KEY).trim();
+
+    const res = await fetch(`${url}/rest/v1/quiz_records?select=count&limit=1`, {
+      headers: {
+        "apikey": key,
+        "Authorization": `Bearer ${key}`
+      }
+    });
+
+    if (res.ok) {
+      alert("🎉 恭喜！Supabase 云数据库连接成功，且 quiz_records 数据表已就绪！\n所有受测者的答卷都会自动写入云端，管理后台支持跨设备实时查看与导出。");
+    } else {
+      const errText = await res.text();
+      if (errText.includes("PGRST205") || errText.includes("does not exist") || errText.includes("schema cache")) {
+        alert("⚠️ Supabase 项目连接正常，但数据表 quiz_records 尚未建立！\n请点击【复制建表 SQL】按钮，在 Supabase SQL Editor 中运行一次即可启用！");
+      } else {
+        alert(`连接响应状态 (HTTP ${res.status})：${errText}`);
+      }
+    }
+  } catch (err) {
+    alert(`连接失败：${err.message || err}\n请检查网络连接或 Supabase URL。`);
+  } finally {
+    btnTestSupabase.disabled = false;
+    btnTestSupabase.textContent = "🔍 测试云端连接";
   }
 }
 
@@ -1029,36 +1300,30 @@ async function openAdminDashboard() {
 }
 
 /**
- * 刷新后台数据（优先从 LeanCloud 云端 / 自建服务器抓取，无缝回退本地）
+ * 刷新后台数据（优先从 Supabase 全球云端数据库抓取，支持自建 API 与本地回退）
  */
 async function refreshAdminData() {
   let records = [];
+  let isSupabaseSuccess = false;
 
-  // 1. 尝试从 LeanCloud 云端数据库抓取
-  if (cloudConfig.lcAppId && typeof AV !== "undefined") {
-    try {
-      const query = new AV.Query("QuizRecord");
-      query.descending("createdAt");
-      query.limit(200);
-      const results = await query.find();
-      if (results && results.length > 0) {
-        records = results.map(r => ({
-          id: r.get("recordId") || r.id,
-          name: r.get("name"),
-          group: r.get("group"),
-          totalScore: r.get("totalScore"),
-          statusTag: r.get("statusTag"),
-          headline: r.get("headline"),
-          isAlert: r.get("isAlert"),
-          secretNote: r.get("secretNote"),
-          submitTime: r.get("submitTime"),
-          answers: r.get("answers")
-        }));
-        console.log(`从 LeanCloud 云端获取到 ${records.length} 条记录`);
+  // 1. 尝试从 Supabase 全球云端抓取
+  try {
+    const supabaseRes = await fetchRecordsFromSupabase();
+    if (supabaseRes && supabaseRes.records !== null) {
+      records = supabaseRes.records;
+      isSupabaseSuccess = true;
+      if (supabaseSetupBanner) supabaseSetupBanner.style.display = "none";
+      updateBackendStatusBadge("supabase", "Supabase 全球云端数据库已连接 (实时同步)");
+      console.log(`成功从 Supabase 云数据库拉取到 ${records.length} 条测试记录`);
+    } else if (supabaseRes && supabaseRes.error) {
+      const errStr = JSON.stringify(supabaseRes.error);
+      if (errStr.includes("PGRST205") || errStr.includes("does not exist") || errStr.includes("schema cache")) {
+        if (supabaseSetupBanner) supabaseSetupBanner.style.display = "flex";
+        updateBackendStatusBadge("supabase", "Supabase 连接正常，但尚未建立 quiz_records 数据表");
       }
-    } catch (e) {
-      console.warn("未能从 LeanCloud 拉取数据:", e);
     }
+  } catch (err) {
+    console.warn("Supabase 抓取数据捕获异常:", err);
   }
 
   // 2. 尝试从自建 API 抓取
@@ -1072,10 +1337,13 @@ async function refreshAdminData() {
     } catch (e) {}
   }
 
-  // 3. 回退读取本地数据池
+  // 3. 回退读取本地数据池（若云端尚未建表或网络离线）
   if (!records || records.length === 0) {
     try {
-      records = JSON.parse(localStorage.getItem(STORAGE_ADMIN_RECORDS) || "[]");
+      const localList = JSON.parse(localStorage.getItem(STORAGE_ADMIN_RECORDS) || "[]");
+      if (localList && localList.length > 0) {
+        records = localList;
+      }
     } catch (e) {
       records = [];
     }
@@ -1232,6 +1500,14 @@ window.viewRecordDetail = function(recordId) {
 window.deleteRecord = async function(recordId) {
   if (!confirm("确定要删除这条测试记录吗？此操作无法恢复。")) return;
 
+  // 1. 同步从 Supabase 云数据库删除
+  try {
+    await deleteRecordFromSupabase(recordId);
+  } catch (e) {
+    console.warn("Supabase 删除异常:", e);
+  }
+
+  // 2. 从自建服务器删除
   const backendTarget = currentBackendUrl || cloudConfig.customApiUrl;
   if (backendTarget) {
     try {
@@ -1239,6 +1515,7 @@ window.deleteRecord = async function(recordId) {
     } catch (e) {}
   }
 
+  // 3. 本地缓存清理
   allAdminRecords = allAdminRecords.filter(r => r.id !== recordId);
   localStorage.setItem(STORAGE_ADMIN_RECORDS, JSON.stringify(allAdminRecords));
 
@@ -1252,6 +1529,14 @@ window.deleteRecord = async function(recordId) {
 async function handleClearAllAdminRecords() {
   if (!confirm("⚠️ 高危操作：确定要清空所有的打卡记录数据吗？\n建议在清空前先点击【导出 Excel/CSV】保存备份！")) return;
 
+  // 1. 从 Supabase 云数据库清空
+  try {
+    await clearAllRecordsFromSupabase();
+  } catch (e) {
+    console.warn("Supabase 清空异常:", e);
+  }
+
+  // 2. 从自建服务器清空
   const backendTarget = currentBackendUrl || cloudConfig.customApiUrl;
   if (backendTarget) {
     try {
@@ -1264,7 +1549,7 @@ async function handleClearAllAdminRecords() {
 
   updateAdminMetrics([]);
   filterAndRenderAdminTable();
-  alert("已清空所有后台测试记录。");
+  alert("已清空后台测试记录。");
 }
 
 /**
@@ -1382,10 +1667,9 @@ function handleChangePasswordSubmit(e) {
  */
 function openCloudSettingsModal() {
   cloudSettingsModal.style.display = "flex";
+  supabaseUrlInput.value = cloudConfig.supabaseUrl || DEFAULT_SUPABASE_URL;
+  supabaseKeyInput.value = cloudConfig.supabaseKey || DEFAULT_SUPABASE_KEY;
   pushplusTokenInput.value = cloudConfig.pushplusToken || DEFAULT_PUSHPLUS_TOKEN;
-  lcAppIdInput.value = cloudConfig.lcAppId || "";
-  lcAppKeyInput.value = cloudConfig.lcAppKey || "";
-  lcServerUrlInput.value = cloudConfig.lcServerUrl || "";
   customApiUrlInput.value = cloudConfig.customApiUrl || "";
 }
 
@@ -1393,20 +1677,20 @@ function openCloudSettingsModal() {
  * 保存云端设置
  */
 function saveCloudSettings() {
+  cloudConfig.supabaseUrl = (supabaseUrlInput.value.trim() || DEFAULT_SUPABASE_URL);
+  cloudConfig.supabaseKey = (supabaseKeyInput.value.trim() || DEFAULT_SUPABASE_KEY);
   cloudConfig.pushplusToken = pushplusTokenInput.value.trim();
-  cloudConfig.lcAppId = lcAppIdInput.value.trim();
-  cloudConfig.lcAppKey = lcAppKeyInput.value.trim();
-  cloudConfig.lcServerUrl = lcServerUrlInput.value.trim();
   cloudConfig.customApiUrl = customApiUrlInput.value.trim();
 
   localStorage.setItem(STORAGE_CLOUD_CONFIG, JSON.stringify(cloudConfig));
   cloudSettingsModal.style.display = "none";
 
-  initLeanCloud();
+  supabaseClient = null; // 重置客户端对象
+  getSupabaseClient();
   detectBackendServer();
   refreshAdminData();
 
-  alert("🎉 跨设备同步设置已保存！\n系统将自动通过你开启的通道进行数据汇总与通知。");
+  alert("🎉 跨设备云数据库与同步设置已保存！\n系统将自动优先通过 Supabase 云端进行数据汇总与存储。");
 }
 
 /**
