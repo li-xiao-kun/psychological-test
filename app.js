@@ -375,21 +375,26 @@ function bindEvents() {
 
 /**
  * 探测独立后端服务 (Python server.py)
+ * 仅在本地开发或明确填写了服务器地址时探测，避免在静态托管中产生 404/Refused 控制台日志
  */
 async function detectBackendServer() {
-  const possibleEndpoints = [];
+  const isLocalHost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+  
   if (cloudConfig.customApiUrl) {
-    possibleEndpoints.push(`${cloudConfig.customApiUrl.replace(/\/+$/, "")}/api/health`);
-  }
-  possibleEndpoints.push("http://localhost:8080/api/health");
-  possibleEndpoints.push("/api/health");
-
-  for (const url of possibleEndpoints) {
     try {
-      const res = await fetch(url, { method: "GET", signal: AbortSignal.timeout(1200) });
+      const target = `${cloudConfig.customApiUrl.replace(/\/+$/, "")}/api/health`;
+      const res = await fetch(target, { method: "GET", signal: AbortSignal.timeout(1200) });
       if (res.ok) {
-        currentBackendUrl = url.replace("/api/health", "");
-        console.log("已连通独立后端服务器:", currentBackendUrl);
+        currentBackendUrl = cloudConfig.customApiUrl;
+        updateBackendStatusBadge("server");
+        return;
+      }
+    } catch (err) {}
+  } else if (isLocalHost) {
+    try {
+      const res = await fetch("http://localhost:8080/api/health", { method: "GET", signal: AbortSignal.timeout(800) });
+      if (res.ok) {
+        currentBackendUrl = "http://localhost:8080";
         updateBackendStatusBadge("server");
         return;
       }
@@ -741,22 +746,7 @@ function sendPushPlusForm(token, title, content) {
 
     setTimeout(() => {
       form.remove();
-    }, 1500);
-
-    // 辅助通道：标准 URLSearchParams no-cors fetch 双重保险
-    try {
-      const sp = new URLSearchParams();
-      sp.append("token", token);
-      sp.append("title", title);
-      sp.append("content", content);
-      sp.append("template", "html");
-      fetch("https://www.pushplus.plus/send", {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: sp
-      }).catch(() => {});
-    } catch (e) {}
+    }, 2000);
 
     return true;
   } catch (err) {
