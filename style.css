@@ -1667,3 +1667,97 @@ body {
   }
 }
 
+/* ============================================================
+   跨设备云端同步与微信提醒样式
+   ============================================================ */
+.btn-cloud {
+  background: linear-gradient(135deg, #4F46E5 0%, #6366F1 100%);
+  color: #FFF;
+  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25);
+}
+.btn-cloud:hover {
+  background: linear-gradient(135deg, #4338CA 0%, #4F46E5 100%);
+  transform: translateY(-1px);
+}
+
+.sync-banner {
+  background: #FFFBEB;
+  border-bottom: 1px solid #FDE68A;
+  padding: 10px 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.86rem;
+  color: #92400E;
+  flex-shrink: 0;
+}
+.sync-banner-icon {
+  font-size: 1.1rem;
+}
+.sync-banner-text {
+  flex: 1;
+}
+
+.cloud-settings-card {
+  padding: 24px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+.settings-intro {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+.sync-option-card {
+  background: #F8FAF9;
+  border: 1px solid #E2E8F0;
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  transition: border-color var(--transition-fast);
+}
+.sync-option-card:hover {
+  border-color: #CBD5E1;
+}
+.sync-opt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.sync-opt-badge {
+  font-weight: 700;
+  font-size: 0.94rem;
+}
+.badge-wechat { color: #059669; }
+.badge-cloud { color: #2563EB; }
+.badge-server { color: #7C3AED; }
+
+.sync-opt-tag {
+  font-size: 0.76rem;
+  background: #E2E8F0;
+  color: var(--text-muted);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+.sync-opt-desc {
+  font-size: 0.85rem;
+  color: var(--text-body);
+  line-height: 1.55;
+}
+.sync-help-text {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 6px;
+  line-height: 1.5;
+}
+.sync-help-text code {
+  background: #EDE9FE;
+  color: #6D28D9;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+

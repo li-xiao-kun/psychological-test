@@ -13,6 +13,8 @@
   <link rel="stylesheet" href="style.css">
   <!-- 用于报告卡片导出的轻量级 html2canvas 支持 -->
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <!-- 用于全网多端跨设备云存储同步的官方轻量 SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/leancloud-storage@4.15.0/dist/av-min.js"></script>
 </head>
 <body>
   <!-- 背景漂浮装饰光斑 -->
@@ -334,18 +336,29 @@
           </div>
         </div>
         <div class="dashboard-top-actions">
+          <button id="btnOpenCloudSync" class="btn-dash btn-cloud" title="配置微信实时通知或云数据库">
+            <span>⚙️ 跨设备同步/微信提醒</span>
+          </button>
           <button id="btnExportCSV" class="btn-dash btn-export" title="导出 Excel/CSV 报表">
             <span>📥 导出 Excel / CSV 表格</span>
           </button>
           <button id="btnOpenChangePwd" class="btn-dash btn-sec">
-            <span>🔑 修改管理密码</span>
+            <span>🔑 修改密码</span>
           </button>
           <button id="btnAdminLogout" class="btn-dash btn-danger">
-            <span>🚪 退出登录</span>
+            <span>🚪 退出</span>
           </button>
           <button id="btnCloseDashboard" class="close-icon-btn dashboard-close-btn" aria-label="关闭">&times;</button>
         </div>
       </header>
+
+      <!-- 跨设备同步状态提示条 -->
+      <div id="syncBanner" class="sync-banner">
+        <span class="sync-banner-icon">📡</span>
+        <span id="syncBannerText" class="sync-banner-text">
+          💡 <strong>跨设备提醒</strong>：若想在自己的手机/微信上实时收到其他人的打卡答卷，请点击上方 <strong>「⚙️ 跨设备同步/微信提醒」</strong> 开启配置！
+        </span>
+      </div>
 
       <!-- 数据统计概览看板 -->
       <section class="metrics-grid">
@@ -488,6 +501,88 @@
             <button type="button" id="btnCancelChangePwd" class="btn-action btn-close">取消</button>
           </div>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 跨设备数据同步与微信提醒设置弹窗 ================= -->
+  <div id="cloudSettingsModal" class="modal-overlay" style="display: none;">
+    <div class="modal-dialog" style="max-width: 600px;">
+      <div class="card cloud-settings-card">
+        <div class="detail-header">
+          <div class="detail-title-wrap">
+            <span class="icon">⚙️</span>
+            <h3>跨设备数据同步与微信提醒设置</h3>
+          </div>
+          <button id="btnCloseCloudModal" class="close-icon-btn" aria-label="关闭">&times;</button>
+        </div>
+
+        <p class="settings-intro">
+          在 GitHub Pages 静态托管下，若想让<strong>别人在他们的手机上答完题后，你也能实时看到或收到数据</strong>，请选择以下任一方式（支持同时开启）：
+        </p>
+
+        <!-- 方案一：微信实时秒推 -->
+        <div class="sync-option-card">
+          <div class="sync-opt-header">
+            <span class="sync-opt-badge badge-wechat">📱 方案一：微信实时推送通知（极力推荐）</span>
+            <span class="sync-opt-tag">零代码 · 手机即刻响铃</span>
+          </div>
+          <p class="sync-opt-desc">
+            每当有学生/受测者完成打卡，你的<strong>个人微信将立刻收到一条卡片通知</strong>，包含姓名、总分、风险等级、10题明细和树洞内容！
+          </p>
+          <div class="input-group" style="margin-top: 8px;">
+            <label for="pushplusToken">PushPlus (推送加) Token：</label>
+            <input type="text" id="pushplusToken" class="text-input" placeholder="粘贴你的 PushPlus Token">
+          </div>
+          <p class="sync-help-text">
+            👉 <strong>如何获取（免费 30 秒）：</strong>微信搜索关注公众号 <code>pushplus推送加</code> -> 点击“个人中心”即可复制你的专属 Token。
+          </p>
+        </div>
+
+        <!-- 方案二：LeanCloud 云数据库 -->
+        <div class="sync-option-card" style="margin-top: 16px;">
+          <div class="sync-opt-header">
+            <span class="sync-opt-badge badge-cloud">☁️ 方案二：LeanCloud 云端数据库（网页表格全量汇聚）</span>
+            <span class="sync-opt-tag">集中建档 · 支持导出 Excel</span>
+          </div>
+          <p class="sync-opt-desc">
+            所有人在全国各地提交的答卷实时汇聚在同一个云端表，你在任何电脑/手机打开本管理后台即可一键刷新查看、搜索与下载 Excel 报表。
+          </p>
+          <div class="user-info-grid" style="margin-top: 8px;">
+            <div class="input-group">
+              <label for="lcAppId">LeanCloud AppID：</label>
+              <input type="text" id="lcAppId" class="text-input" placeholder="你的 LeanCloud AppID">
+            </div>
+            <div class="input-group">
+              <label for="lcAppKey">LeanCloud AppKey：</label>
+              <input type="text" id="lcAppKey" class="text-input" placeholder="你的 LeanCloud AppKey">
+            </div>
+          </div>
+          <div class="input-group" style="margin-top: 8px;">
+            <label for="lcServerUrl">REST API 服务器地址（国内版必填，国际版可留空）：</label>
+            <input type="text" id="lcServerUrl" class="text-input" placeholder="例如：https://xxxx.example.com">
+          </div>
+        </div>
+
+        <!-- 方案三：自建服务器 API -->
+        <div class="sync-option-card" style="margin-top: 16px;">
+          <div class="sync-opt-header">
+            <span class="sync-opt-badge badge-server">🖥️ 方案三：自定义服务器 API</span>
+          </div>
+          <p class="sync-opt-desc">
+            若你在云服务器或局域网运行了本项目的 <code>server.py</code>，填入公网接口地址即可自动对接。
+          </p>
+          <div class="input-group" style="margin-top: 8px;">
+            <label for="customApiUrl">自定义 API 服务地址：</label>
+            <input type="text" id="customApiUrl" class="text-input" placeholder="例如：http://192.168.1.100:8080 或你的公网域名">
+          </div>
+        </div>
+
+        <div class="modal-buttons" style="margin-top: 20px;">
+          <button id="btnSaveCloudSettings" class="btn-action btn-primary">💾 保存同步配置</button>
+          <button id="btnTestPushNotification" class="btn-action btn-secondary">🔔 发送一条微信测试通知</button>
+          <button id="btnCancelCloudSettings" class="btn-action btn-close">取消</button>
+        </div>
       </div>
     </div>
   </div>

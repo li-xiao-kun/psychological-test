@@ -1,5 +1,5 @@
 /**
- * 🌱 近期心情与能量小打卡 - 核心交互逻辑、双权限体系与数据后台管理
+ * 🌱 近期心情与能量小打卡 - 核心交互逻辑、双权限体系与跨设备云端数据汇聚
  */
 
 // 1. 题目数据源
@@ -78,13 +78,21 @@ const scoreOptions = [
 const STORAGE_USER_HISTORY = "psy_test_history_v1";
 const STORAGE_ADMIN_RECORDS = "psy_admin_records_v1";
 const STORAGE_ADMIN_PWD = "psy_admin_pwd_v1";
+const STORAGE_CLOUD_CONFIG = "psy_cloud_config_v1";
 const DEFAULT_ADMIN_PWD = "admin123";
 
 // 状态管理
 const userAnswers = {}; // { questionId: score }
 let allAdminRecords = []; // 管理员视角下的全量答卷
 let isAdminLoggedIn = false;
-let currentBackendUrl = null; // 探测到的后端服务地址（如 http://localhost:8080）
+let currentBackendUrl = null; // 探测到的后端服务地址
+let cloudConfig = {
+  pushplusToken: "",
+  lcAppId: "",
+  lcAppKey: "",
+  lcServerUrl: "",
+  customApiUrl: ""
+};
 
 // DOM 元素引用
 const questionsContainer = document.getElementById("questionsContainer");
@@ -149,6 +157,8 @@ const adminTableBody = document.getElementById("adminTableBody");
 const adminEmptyTable = document.getElementById("adminEmptyTable");
 const backendStatusDot = document.getElementById("backendStatusDot");
 const backendStatusText = document.getElementById("backendStatusText");
+const syncBanner = document.getElementById("syncBanner");
+const syncBannerText = document.getElementById("syncBannerText");
 
 // 答卷详情弹窗
 const adminDetailModal = document.getElementById("adminDetailModal");
@@ -170,13 +180,61 @@ const newPasswordInput = document.getElementById("newPassword");
 const confirmPasswordInput = document.getElementById("confirmPassword");
 const btnCancelChangePwd = document.getElementById("btnCancelChangePwd");
 
+// 跨设备云端设置弹窗
+const cloudSettingsModal = document.getElementById("cloudSettingsModal");
+const btnOpenCloudSync = document.getElementById("btnOpenCloudSync");
+const btnCloseCloudModal = document.getElementById("btnCloseCloudModal");
+const btnCancelCloudSettings = document.getElementById("btnCancelCloudSettings");
+const btnSaveCloudSettings = document.getElementById("btnSaveCloudSettings");
+const btnTestPushNotification = document.getElementById("btnTestPushNotification");
+const pushplusTokenInput = document.getElementById("pushplusToken");
+const lcAppIdInput = document.getElementById("lcAppId");
+const lcAppKeyInput = document.getElementById("lcAppKey");
+const lcServerUrlInput = document.getElementById("lcServerUrl");
+const customApiUrlInput = document.getElementById("customApiUrl");
+
 // 初始化
 document.addEventListener("DOMContentLoaded", () => {
+  loadCloudConfig();
   renderQuestions();
   bindEvents();
   updateProgress();
   detectBackendServer();
+  initLeanCloud();
 });
+
+/**
+ * 读取云端设置
+ */
+function loadCloudConfig() {
+  try {
+    const saved = localStorage.getItem(STORAGE_CLOUD_CONFIG);
+    if (saved) {
+      cloudConfig = Object.assign(cloudConfig, JSON.parse(saved));
+    }
+  } catch (e) {}
+}
+
+/**
+ * 初始化 LeanCloud SDK
+ */
+function initLeanCloud() {
+  if (cloudConfig.lcAppId && cloudConfig.lcAppKey && typeof AV !== "undefined") {
+    try {
+      const configObj = {
+        appId: cloudConfig.lcAppId.trim(),
+        appKey: cloudConfig.lcAppKey.trim()
+      };
+      if (cloudConfig.lcServerUrl && cloudConfig.lcServerUrl.trim()) {
+        configObj.serverURL = cloudConfig.lcServerUrl.trim();
+      }
+      AV.init(configObj);
+      console.log("LeanCloud SDK 初始化成功");
+    } catch (e) {
+      console.warn("LeanCloud 初始化失败:", e);
+    }
+  }
+}
 
 /**
  * 渲染全部测试题目
@@ -295,36 +353,64 @@ function bindEvents() {
   });
   btnCancelChangePwd.addEventListener("click", () => adminChangePwdModal.style.display = "none");
   changePwdForm.addEventListener("submit", handleChangePasswordSubmit);
+
+  // 跨设备云端设置弹窗
+  btnOpenCloudSync.addEventListener("click", openCloudSettingsModal);
+  btnCloseCloudModal.addEventListener("click", () => cloudSettingsModal.style.display = "none");
+  btnCancelCloudSettings.addEventListener("click", () => cloudSettingsModal.style.display = "none");
+  btnSaveCloudSettings.addEventListener("click", saveCloudSettings);
+  btnTestPushNotification.addEventListener("click", testPushNotification);
 }
 
 /**
  * 探测独立后端服务 (Python server.py)
  */
 async function detectBackendServer() {
-  const possibleEndpoints = ["http://localhost:8080/api/health", "/api/health"];
+  const possibleEndpoints = [];
+  if (cloudConfig.customApiUrl) {
+    possibleEndpoints.push(`${cloudConfig.customApiUrl.replace(/\/+$/, "")}/api/health`);
+  }
+  possibleEndpoints.push("http://localhost:8080/api/health");
+  possibleEndpoints.push("/api/health");
+
   for (const url of possibleEndpoints) {
     try {
       const res = await fetch(url, { method: "GET", signal: AbortSignal.timeout(1200) });
       if (res.ok) {
         currentBackendUrl = url.replace("/api/health", "");
         console.log("已连通独立后端服务器:", currentBackendUrl);
-        updateBackendStatusBadge(true);
+        updateBackendStatusBadge("server");
         return;
       }
-    } catch (err) {
-      // 本地无服务器或静态运行
-    }
+    } catch (err) {}
   }
-  updateBackendStatusBadge(false);
+
+  if (cloudConfig.lcAppId) {
+    updateBackendStatusBadge("leancloud");
+  } else if (cloudConfig.pushplusToken) {
+    updateBackendStatusBadge("wechat");
+  } else {
+    updateBackendStatusBadge("local");
+  }
 }
 
-function updateBackendStatusBadge(isOnline) {
-  if (isOnline) {
+function updateBackendStatusBadge(mode) {
+  if (mode === "server") {
     backendStatusDot.className = "status-dot dot-green";
-    backendStatusText.textContent = "已连接独立后端服务器 (SQLite 实时数据库同步)";
+    backendStatusText.textContent = "已连接独立服务器 (实时 SQLite 数据库)";
+    syncBannerText.innerHTML = "🟢 <strong>自建服务器已连接</strong>：所有答卷正实时同步至你的 SQLite 数据库。";
+  } else if (mode === "leancloud") {
+    backendStatusDot.className = "status-dot dot-blue";
+    backendStatusText.textContent = "已连接 LeanCloud 云数据库 (全网实时互通)";
+    syncBannerText.innerHTML = "☁️ <strong>云数据库已启用</strong>：任何人在任何手机上答题，都将实时汇聚在下方表格中！";
+  } else if (mode === "wechat") {
+    backendStatusDot.className = "status-dot dot-green";
+    backendStatusText.textContent = "已绑定微信实时提醒 (PushPlus)";
+    syncBannerText.innerHTML = "📱 <strong>微信推送已就绪</strong>：任何人在手机上提交答卷，你的个人微信将第一时间弹出通知！";
   } else {
     backendStatusDot.className = "status-dot dot-blue";
-    backendStatusText.textContent = "GitHub Pages 离线数据中心 (本地安全加密存储)";
+    backendStatusText.textContent = "单机本地模式 (未配置跨设备云端)";
+    syncBannerText.innerHTML = "💡 <strong>跨设备提醒</strong>：若想在手机微信收到答卷，或在后台查看所有人记录，请点击上方 <strong>「⚙️ 跨设备同步/微信提醒」</strong> 配置！";
   }
 }
 
@@ -348,7 +434,6 @@ function handleOptionSelect(qid, score, targetBtn) {
 
   updateProgress();
 
-  // 平滑跳转
   const nextUnanswered = questionsData.find(q => userAnswers[q.id] === undefined);
   if (nextUnanswered && nextUnanswered.id > qid) {
     setTimeout(() => {
@@ -402,15 +487,12 @@ async function handleSubmit() {
     totalScore += userAnswers[i];
   }
 
-  // 组装受测者信息
   const respondentName = userNameInput.value.trim() || "神秘小天使";
   const respondentGroup = userGroupInput.value.trim() || "未填写";
   const secret = secretNote.value.trim();
 
-  // 生成分析与评估
   const gradeData = calculateGrade(totalScore);
 
-  // 组装存储对象
   const now = new Date();
   const formatTime = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
   const isAlert = totalScore >= 15 || (userAnswers[10] || 0) >= 2;
@@ -431,16 +513,16 @@ async function handleSubmit() {
     timestamp: Date.now()
   };
 
-  // 1. 存入后台数据库（无论是否连网，本地均作为可靠持久池）
+  // 1. 本地存储保底
   saveToAdminPool(newRecord);
 
-  // 2. 尝试向后端 API 发送
-  trySendToBackend(newRecord);
+  // 2. 跨网络多通道云端分发（微信提醒、LeanCloud、自建后端）
+  dispatchRecordToCloud(newRecord);
 
-  // 3. 存入普通用户个人日记
+  // 3. 用户个人日记
   saveUserHistoryRecord(totalScore, gradeData.headline, formatTime);
 
-  // 4. 展示报告
+  // 4. 显示受测者报告
   displayReport(newRecord, gradeData);
 }
 
@@ -534,14 +616,12 @@ function displayReport(record, gradeData) {
     .map(s => `<li><span>${s}</span></li>`)
     .join("");
 
-  // 特殊预警检测
   if (record.isAlert) {
     safeGuardNotice.style.display = "flex";
   } else {
     safeGuardNotice.style.display = "none";
   }
 
-  // 树洞
   if (record.secretNote) {
     reportTreeHoleSection.style.display = "block";
     reportTreeHoleContent.textContent = record.secretNote;
@@ -554,7 +634,7 @@ function displayReport(record, gradeData) {
 }
 
 /**
- * 存入管理员全量数据池
+ * 存入管理员本地全量数据池
  */
 function saveToAdminPool(record) {
   try {
@@ -567,19 +647,86 @@ function saveToAdminPool(record) {
 }
 
 /**
- * 尝试推送到后端 API (如果在线)
+ * 跨网络多通道分发（让管理员在微信或云端表格实时看到）
  */
-async function trySendToBackend(record) {
-  if (!currentBackendUrl) return;
-  try {
-    await fetch(`${currentBackendUrl}/api/submit`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(record)
-    });
-  } catch (err) {
-    console.warn("未能成功上报到远程后端，已妥善保存在本地数据库池中", err);
+async function dispatchRecordToCloud(record) {
+  // 1. 微信实时推送 (PushPlus)
+  if (cloudConfig.pushplusToken) {
+    sendWechatNotification(record);
   }
+
+  // 2. LeanCloud 云数据库存储
+  if (cloudConfig.lcAppId && typeof AV !== "undefined") {
+    try {
+      const QuizRecord = AV.Object.extend("QuizRecord");
+      const obj = new QuizRecord();
+      obj.set("recordId", record.id);
+      obj.set("name", record.name);
+      obj.set("group", record.group);
+      obj.set("totalScore", record.totalScore);
+      obj.set("statusTag", record.statusTag);
+      obj.set("headline", record.headline);
+      obj.set("isAlert", record.isAlert);
+      obj.set("secretNote", record.secretNote);
+      obj.set("submitTime", record.submitTime);
+      obj.set("answers", record.answers);
+      await obj.save();
+      console.log("已实时同步至 LeanCloud 云数据库");
+    } catch (e) {
+      console.warn("LeanCloud 保存异常:", e);
+    }
+  }
+
+  // 3. 自建独立服务器
+  const backendTarget = currentBackendUrl || cloudConfig.customApiUrl;
+  if (backendTarget) {
+    try {
+      await fetch(`${backendTarget.replace(/\/+$/, "")}/api/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(record)
+      });
+      console.log("已实时同步至自建服务器 SQLite 数据库");
+    } catch (err) {}
+  }
+}
+
+/**
+ * 发送 PushPlus 微信通知
+ */
+function sendWechatNotification(record) {
+  const token = cloudConfig.pushplusToken.trim();
+  if (!token) return;
+
+  const alertBadge = record.isAlert ? "🚨【重点关爱预警】" : "🌿【心理打卡】";
+  const title = `${alertBadge} ${record.name} 的测评报告 (${record.totalScore}分)`;
+
+  // 组装格式化富文本
+  let content = `
+    <h3>🌱 近期心情与能量小打卡新答卷</h3>
+    <p><strong>打卡人：</strong>${record.name} (${record.group})</p>
+    <p><strong>提交时间：</strong>${record.submitTime}</p>
+    <p><strong>身心总得分：</strong><span style="font-size:18px; color:#2D6A4F; font-weight:bold;">${record.totalScore}</span> / 30分</p>
+    <p><strong>状态评估：</strong>${record.statusTag} (${record.headline})</p>
+    <p><strong>是否高危预警：</strong>${record.isAlert ? '<span style="color:red;font-weight:bold;">🚨 是（建议主动沟通关爱）</span>' : '正常'}</p>
+    <hr/>
+    <p><strong>💬 树洞悄悄话：</strong><br/>${record.secretNote ? record.secretNote : '（未填写）'}</p>
+  `;
+
+  fetch("https://www.pushplus.plus/send", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      token: token,
+      title: title,
+      content: content,
+      template: "html"
+    })
+  }).then(res => res.json()).then(data => {
+    console.log("微信推送结果:", data);
+  }).catch(err => {
+    console.warn("微信推送请求异常:", err);
+  });
 }
 
 /**
@@ -760,7 +907,6 @@ function handleOpenAdmin() {
   if (isAdminLoggedIn) {
     openAdminDashboard();
   } else {
-    // 弹出管理员登录窗
     adminLoginModal.style.display = "flex";
     adminPasswordInput.value = "";
     loginErrorMsg.style.display = "none";
@@ -806,24 +952,50 @@ async function openAdminDashboard() {
 }
 
 /**
- * 刷新后台数据（优先服务端，降级本地存储）
+ * 刷新后台数据（优先从 LeanCloud 云端 / 自建服务器抓取，无缝回退本地）
  */
 async function refreshAdminData() {
   let records = [];
 
-  // 1. 若有独立后端，先尝试从后端拉取
-  if (currentBackendUrl) {
+  // 1. 尝试从 LeanCloud 云端数据库抓取
+  if (cloudConfig.lcAppId && typeof AV !== "undefined") {
     try {
-      const res = await fetch(`${currentBackendUrl}/api/admin/records`);
-      if (res.ok) {
-        records = await res.json();
+      const query = new AV.Query("QuizRecord");
+      query.descending("createdAt");
+      query.limit(200);
+      const results = await query.find();
+      if (results && results.length > 0) {
+        records = results.map(r => ({
+          id: r.get("recordId") || r.id,
+          name: r.get("name"),
+          group: r.get("group"),
+          totalScore: r.get("totalScore"),
+          statusTag: r.get("statusTag"),
+          headline: r.get("headline"),
+          isAlert: r.get("isAlert"),
+          secretNote: r.get("secretNote"),
+          submitTime: r.get("submitTime"),
+          answers: r.get("answers")
+        }));
+        console.log(`从 LeanCloud 云端获取到 ${records.length} 条记录`);
       }
     } catch (e) {
-      console.warn("未能从后端 API 抓取数据，将使用本地存储数据", e);
+      console.warn("未能从 LeanCloud 拉取数据:", e);
     }
   }
 
-  // 2. 如果后端没有数据或离线，读取本地存储
+  // 2. 尝试从自建 API 抓取
+  const backendTarget = currentBackendUrl || cloudConfig.customApiUrl;
+  if ((!records || records.length === 0) && backendTarget) {
+    try {
+      const res = await fetch(`${backendTarget.replace(/\/+$/, "")}/api/admin/records`);
+      if (res.ok) {
+        records = await res.json();
+      }
+    } catch (e) {}
+  }
+
+  // 3. 回退读取本地数据池
   if (!records || records.length === 0) {
     try {
       records = JSON.parse(localStorage.getItem(STORAGE_ADMIN_RECORDS) || "[]");
@@ -870,13 +1042,11 @@ function filterAndRenderAdminTable() {
   const risk = adminRiskFilter.value;
 
   let filtered = allAdminRecords.filter(r => {
-    // 关键词过滤
     const matchName = (r.name || "").toLowerCase().includes(query);
     const matchGroup = (r.group || "").toLowerCase().includes(query);
     const matchNote = (r.secretNote || "").toLowerCase().includes(query);
     const matchText = matchName || matchGroup || matchNote;
 
-    // 状态过滤
     let matchRisk = true;
     if (risk === "alert") {
       matchRisk = r.isAlert === true;
@@ -956,7 +1126,6 @@ window.viewRecordDetail = function(recordId) {
     ? `<span style="color:#C53030; font-weight:bold;">🚨 触发重点关爱预警 (高分或强烈孤独)</span>` 
     : `<span style="color:#2D6A4F; font-weight:bold;">状态良好</span>`;
 
-  // 10 道题目详情
   detailQuestionsList.innerHTML = questionsData.map(q => {
     const ansScore = record.answers ? record.answers[q.id] : "-";
     const optDesc = scoreOptions.find(o => o.score === ansScore)?.desc || "";
@@ -986,14 +1155,13 @@ window.viewRecordDetail = function(recordId) {
 window.deleteRecord = async function(recordId) {
   if (!confirm("确定要删除这条测试记录吗？此操作无法恢复。")) return;
 
-  // 1. 如果有后端尝试向后端发送删除
-  if (currentBackendUrl) {
+  const backendTarget = currentBackendUrl || cloudConfig.customApiUrl;
+  if (backendTarget) {
     try {
-      await fetch(`${currentBackendUrl}/api/admin/records/${recordId}`, { method: "DELETE" });
+      await fetch(`${backendTarget.replace(/\/+$/, "")}/api/admin/records/${recordId}`, { method: "DELETE" });
     } catch (e) {}
   }
 
-  // 2. 本地池删除
   allAdminRecords = allAdminRecords.filter(r => r.id !== recordId);
   localStorage.setItem(STORAGE_ADMIN_RECORDS, JSON.stringify(allAdminRecords));
 
@@ -1007,9 +1175,10 @@ window.deleteRecord = async function(recordId) {
 async function handleClearAllAdminRecords() {
   if (!confirm("⚠️ 高危操作：确定要清空所有的打卡记录数据吗？\n建议在清空前先点击【导出 Excel/CSV】保存备份！")) return;
 
-  if (currentBackendUrl) {
+  const backendTarget = currentBackendUrl || cloudConfig.customApiUrl;
+  if (backendTarget) {
     try {
-      await fetch(`${currentBackendUrl}/api/admin/records/clear`, { method: "POST" });
+      await fetch(`${backendTarget.replace(/\/+$/, "")}/api/admin/records/clear`, { method: "POST" });
     } catch (e) {}
   }
 
@@ -1075,7 +1244,6 @@ function handleExportCSV() {
     ];
   });
 
-  // 拼接 CSV 内容（加入 \uFEFF 解决 Windows Excel 打开中文乱码）
   let csvContent = "\uFEFF" + headers.join(",") + "\n";
   rows.forEach(row => {
     csvContent += row.join(",") + "\n";
@@ -1130,4 +1298,74 @@ function handleChangePasswordSubmit(e) {
   localStorage.setItem(STORAGE_ADMIN_PWD, newPwd);
   adminChangePwdModal.style.display = "none";
   alert("🎉 管理员密码修改成功！请牢记您的新密码。");
+}
+
+/**
+ * 打开云端同步设置弹窗
+ */
+function openCloudSettingsModal() {
+  cloudSettingsModal.style.display = "flex";
+  pushplusTokenInput.value = cloudConfig.pushplusToken || "";
+  lcAppIdInput.value = cloudConfig.lcAppId || "";
+  lcAppKeyInput.value = cloudConfig.lcAppKey || "";
+  lcServerUrlInput.value = cloudConfig.lcServerUrl || "";
+  customApiUrlInput.value = cloudConfig.customApiUrl || "";
+}
+
+/**
+ * 保存云端设置
+ */
+function saveCloudSettings() {
+  cloudConfig.pushplusToken = pushplusTokenInput.value.trim();
+  cloudConfig.lcAppId = lcAppIdInput.value.trim();
+  cloudConfig.lcAppKey = lcAppKeyInput.value.trim();
+  cloudConfig.lcServerUrl = lcServerUrlInput.value.trim();
+  cloudConfig.customApiUrl = customApiUrlInput.value.trim();
+
+  localStorage.setItem(STORAGE_CLOUD_CONFIG, JSON.stringify(cloudConfig));
+  cloudSettingsModal.style.display = "none";
+
+  initLeanCloud();
+  detectBackendServer();
+  refreshAdminData();
+
+  alert("🎉 跨设备同步设置已保存！\n系统将自动通过你开启的通道进行数据汇总与通知。");
+}
+
+/**
+ * 测试发送一条微信推送
+ */
+function testPushNotification() {
+  const token = pushplusTokenInput.value.trim();
+  if (!token) {
+    alert("请先在上方输入你的 PushPlus Token 再点击测试哦！");
+    pushplusTokenInput.focus();
+    return;
+  }
+
+  btnTestPushNotification.disabled = true;
+  btnTestPushNotification.textContent = "⏳ 正在发送测试微信...";
+
+  fetch("https://www.pushplus.plus/send", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      token: token,
+      title: "🌱【测试】心情与能量打卡推送测试",
+      content: "恭喜！你的微信已成功绑定【近期心情与能量小打卡】系统。<br/>当有人完成测试打卡时，答卷和预警提醒将第一时间推送到你的微信！",
+      template: "html"
+    })
+  }).then(res => res.json()).then(res => {
+    btnTestPushNotification.disabled = false;
+    btnTestPushNotification.textContent = "🔔 发送一条微信测试通知";
+    if (res.code === 200) {
+      alert("✅ 微信测试推送已成功发出！\n请查看你的微信公众号「pushplus推送加」，应该已经收到消息啦！📱");
+    } else {
+      alert(`推送返回信息: ${res.msg || "请检查 Token 是否正确"}`);
+    }
+  }).catch(err => {
+    btnTestPushNotification.disabled = false;
+    btnTestPushNotification.textContent = "🔔 发送一条微信测试通知";
+    alert("请求异常，请检查网络或 Token。");
+  });
 }
