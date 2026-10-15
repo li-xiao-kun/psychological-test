@@ -585,8 +585,8 @@ async function handleSubmit() {
   // 1. 本地存储保底
   saveToAdminPool(newRecord);
 
-  // 2. 跨网络多通道云端分发（微信提醒、LeanCloud、自建后端）
-  dispatchRecordToCloud(newRecord);
+  // 2. 跨网络多通道云端分发（自动同步至 Supabase 云数据库）
+  await dispatchRecordToCloud(newRecord);
 
   // 3. 用户个人日记
   saveUserHistoryRecord(totalScore, gradeData.headline, formatTime);
