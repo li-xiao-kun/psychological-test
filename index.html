@@ -9,7 +9,7 @@
   <!-- 预加载图标与字体 -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261016_smooth_admin">
+  <link rel="stylesheet" href="style.css?v=20261016_fix_overlay_leak">
   <!-- 用于报告卡片导出的轻量级 html2canvas 支持 -->
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <!-- 引入 Supabase 官方全端数据库 SDK，支持跨设备云端实时同步 -->
@@ -334,6 +334,9 @@
           </div>
         </div>
         <div class="dashboard-top-actions">
+          <button id="btnReturnToQuiz" class="btn-dash btn-return" title="返回答题打卡页面">
+            <span>⬅ 返回答题</span>
+          </button>
           <button id="btnExportCSV" class="btn-dash btn-export" title="导出 Excel/CSV 报表">
             <span>📥 导出表格</span>
           </button>
@@ -622,6 +625,6 @@
     </div>
   </footer>
 
-  <script src="app.js?v=20261016_smooth_admin"></script>
+  <script src="app.js?v=20261016_fix_overlay_leak"></script>
 </body>
 </html>

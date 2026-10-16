@@ -385,6 +385,10 @@ function bindEvents() {
   adminLoginForm.addEventListener("submit", handleAdminLoginSubmit);
   btnAdminLoginCancel.addEventListener("click", () => adminLoginModal.style.display = "none");
 
+  const btnReturnToQuiz = document.getElementById("btnReturnToQuiz");
+  if (btnReturnToQuiz) {
+    btnReturnToQuiz.addEventListener("click", closeAdminDashboard);
+  }
   btnCloseDashboard.addEventListener("click", closeAdminDashboard);
   btnAdminLogout.addEventListener("click", handleAdminLogout);
   btnExportCSV.addEventListener("click", handleExportCSV);
@@ -1295,6 +1299,7 @@ function handleAdminLoginSubmit(e) {
  * 关闭管理员后台大屏，恢复背景网页顺畅滚动
  */
 function closeAdminDashboard() {
+  adminDashboardModal.style.setProperty("display", "none", "important");
   adminDashboardModal.style.display = "none";
   document.body.style.overflow = "";
   document.documentElement.style.overflow = "";
@@ -1313,6 +1318,7 @@ function handleAdminLogout() {
  * 打开管理员后台大屏（锁定背景网页滚动，保持后台独立惯性滚动）
  */
 async function openAdminDashboard() {
+  adminDashboardModal.style.setProperty("display", "flex", "important");
   adminDashboardModal.style.display = "flex";
   document.body.style.overflow = "hidden";
   document.documentElement.style.overflow = "hidden";
