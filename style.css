@@ -1862,222 +1862,370 @@ body {
    管理员后台大屏在移动端（手机与平板）的沉浸式卡片化改造
    ============================================================ */
 @media (max-width: 768px) {
-  /* 弹窗全屏化 */
+  /* 弹窗全屏覆盖与单一直属惯性平滑滚动容器 */
   .admin-dashboard-overlay {
+    position: fixed !important;
+    inset: 0 !important;
     padding: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 1000 !important;
+    background: #F8FAF9 !important;
+    display: block !important;
+    overflow: hidden !important;
   }
   .admin-dashboard-container {
-    width: 100vw !important;
-    height: 100vh !important;
-    max-height: 100vh !important;
+    width: 100% !important;
+    height: 100% !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
     border-radius: 0 !important;
     border: none !important;
+    box-shadow: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-y: contain !important;
+    scroll-behavior: smooth !important;
+    background: #F8FAF9 !important;
   }
   
-  /* 顶部栏 */
+  /* 极简轻量级吸顶顶栏 */
   .dashboard-header {
-    padding: 12px 14px;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-    position: relative;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 100 !important;
+    padding: 10px 14px 8px !important;
+    background: rgba(255, 255, 255, 0.96) !important;
+    backdrop-filter: blur(14px) !important;
+    -webkit-backdrop-filter: blur(14px) !important;
+    border-bottom: 1px solid #E2E8F0 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    flex-shrink: 0 !important;
   }
   .dashboard-brand {
-    justify-content: flex-start;
-    width: 100%;
-    padding-right: 36px;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    width: 100% !important;
+    padding-right: 42px !important;
+    gap: 8px !important;
+  }
+  .dashboard-brand .icon {
+    font-size: 1.3rem !important;
   }
   .dashboard-brand h2 {
-    font-size: 1.05rem;
-    line-height: 1.3;
+    font-size: 0.98rem !important;
+    font-weight: 800 !important;
+    line-height: 1.25 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    color: var(--text-main) !important;
   }
-  .dashboard-top-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    width: 100%;
-  }
-  .dashboard-top-actions .btn-dash {
-    padding: 7px 10px;
-    font-size: 0.78rem;
-    flex: 1 1 calc(50% - 6px);
-    justify-content: center;
-    border-radius: var(--radius-sm);
+  .dashboard-brand .backend-status-pill {
+    font-size: 0.72rem !important;
+    margin-top: 1px !important;
   }
   .dashboard-close-btn {
-    position: absolute;
-    top: 10px;
-    right: 12px;
-    font-size: 1.8rem;
-    color: var(--text-muted);
+    position: absolute !important;
+    top: 10px !important;
+    right: 12px !important;
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 50% !important;
+    background: #F1F5F9 !important;
+    border: 1px solid #E2E8F0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.3rem !important;
+    line-height: 1 !important;
+    color: #64748B !important;
+    cursor: pointer !important;
+    z-index: 10 !important;
+    transition: all 0.15s ease !important;
+  }
+  .dashboard-close-btn:active {
+    background: #E2E8F0 !important;
+    transform: scale(0.92) !important;
+  }
+  .dashboard-top-actions {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+    width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 2px 0 !important;
+  }
+  .dashboard-top-actions::-webkit-scrollbar {
+    display: none !important;
+  }
+  .dashboard-top-actions .btn-dash {
+    flex: 1 0 auto !important;
+    padding: 6px 11px !important;
+    font-size: 0.78rem !important;
+    font-weight: 600 !important;
+    border-radius: var(--radius-full) !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
+    min-height: 34px !important;
   }
   
-  /* 提示条 */
+  /* 提示条移动端自适应 */
   .sync-banner {
-    padding: 8px 12px;
-    font-size: 0.78rem;
+    padding: 8px 12px !important;
+    font-size: 0.76rem !important;
+    line-height: 1.45 !important;
+    background: #FFFBEB !important;
+    border-bottom: 1px solid #FDE68A !important;
+    flex-shrink: 0 !important;
   }
   
-  /* 统计看板 2x2 网格 */
+  /* 极简4联指标条（大幅缩减纵向高度，给答卷留出最大阅读空间） */
   .metrics-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 8px !important;
-    padding: 10px 12px !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 6px !important;
+    padding: 8px 10px !important;
+    background: #FFFFFF !important;
+    border-bottom: 1px solid #E2E8F0 !important;
+    flex-shrink: 0 !important;
   }
   .metric-card {
-    padding: 10px 12px;
-    gap: 10px;
-    border-radius: var(--radius-md);
+    padding: 6px 4px !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    gap: 2px !important;
+    border-radius: 10px !important;
+    background: #F8FAF9 !important;
+    border: 1px solid #E2E8F0 !important;
+    min-height: 52px !important;
   }
   .metric-icon {
-    width: 36px;
-    height: 36px;
-    font-size: 1.15rem;
-    border-radius: 8px;
+    display: none !important; /* 隐藏大图标节省空间 */
+  }
+  .metric-body {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    width: 100% !important;
   }
   .metric-label {
-    font-size: 0.74rem;
+    font-size: 0.68rem !important;
+    color: #64748B !important;
+    white-space: nowrap !important;
+    letter-spacing: -0.2px !important;
   }
   .metric-value {
-    font-size: 1.25rem;
+    font-size: 1.15rem !important;
+    font-weight: 800 !important;
+    color: var(--text-main) !important;
+    line-height: 1.15 !important;
+  }
+  .metric-value small {
+    font-size: 0.65rem !important;
+  }
+  .metric-card.alert-card {
+    background: #FFF5F5 !important;
+    border-color: #FEB2B2 !important;
   }
   
-  /* 搜索与筛选栏 */
+  /* 搜索与筛选控制栏 */
   .table-filter-bar {
-    padding: 10px 12px;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
+    padding: 10px 12px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+    background: #FAFBFB !important;
+    border-bottom: 1px solid #E2E8F0 !important;
+    flex-shrink: 0 !important;
   }
   .search-wrap {
-    max-width: 100%;
+    width: 100% !important;
+    max-width: 100% !important;
+    position: relative !important;
+  }
+  .search-input {
+    width: 100% !important;
+    padding: 9px 12px 9px 34px !important;
+    font-size: 0.88rem !important;
+    border-radius: var(--radius-full) !important;
+    background: #FFFFFF !important;
   }
   .filter-controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    width: 100%;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    width: 100% !important;
   }
   .filter-select {
-    flex: 2;
-    min-width: 140px;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    padding: 7px 10px !important;
+    font-size: 0.8rem !important;
+    border-radius: var(--radius-full) !important;
+    text-overflow: ellipsis !important;
+    background-color: #FFFFFF !important;
   }
   .filter-controls .btn-dash {
-    flex: 1;
-    padding: 7px 10px;
-    font-size: 0.8rem;
-    justify-content: center;
+    flex: 0 0 auto !important;
+    padding: 7px 12px !important;
+    font-size: 0.8rem !important;
+    white-space: nowrap !important;
+    border-radius: var(--radius-full) !important;
+  }
+  #btnClearAllAdminData {
+    padding: 7px 10px !important;
   }
   
-  /* 核心：将 9 列传统表格重构为移动端卡片式流式视图 (Card Feed) */
+  /* 核心：解除内部滚动限制，融入整体单一流畅滚动 */
   .admin-table-wrap {
-    padding: 6px 10px 24px;
-    background: #F8FAF9;
+    flex: 1 0 auto !important;
+    overflow: visible !important; /* 关键：消除多层嵌套滚动死锁 */
+    padding: 10px 12px calc(48px + env(safe-area-inset-bottom)) !important;
+    background: #F8FAF9 !important;
   }
   .admin-data-table, 
   .admin-data-table tbody {
-    display: block;
-    width: 100%;
+    display: block !important;
+    width: 100% !important;
   }
   .admin-data-table thead {
-    display: none !important; /* 移动端隐藏表头 */
+    display: none !important; /* 移动端隐藏传统表头 */
   }
   .admin-data-table tbody tr {
-    display: flex;
-    flex-direction: column;
-    background: #FFFFFF;
-    border: 1px solid #E2E8F0;
-    border-radius: 16px;
-    padding: 14px;
-    margin-bottom: 12px;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.03);
-    gap: 6px;
-    position: relative;
-    transition: transform var(--transition-fast);
+    display: flex !important;
+    flex-direction: column !important;
+    background: #FFFFFF !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 16px !important;
+    padding: 14px !important;
+    margin-bottom: 12px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+    gap: 8px !important;
+    position: relative !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+  }
+  .admin-data-table tbody tr:active {
+    transform: scale(0.99) !important;
   }
   .admin-data-table tbody tr.row-alert {
-    border-left: 5px solid #E53E3E;
-    background: #FFFBFB;
+    border-left: 5px solid #E53E3E !important;
+    background: #FFFDFD !important;
   }
   .admin-data-table td {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 3px 0;
-    border: none;
-    font-size: 0.88rem;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 3px 0 !important;
+    border: none !important;
+    font-size: 0.86rem !important;
   }
   .admin-data-table td::before {
-    content: attr(data-label);
-    font-weight: 600;
-    color: #718096;
-    font-size: 0.78rem;
+    content: attr(data-label) !important;
+    font-weight: 600 !important;
+    color: #64748B !important;
+    font-size: 0.76rem !important;
+  }
+  .admin-data-table td.cell-num {
+    color: #94A3B8 !important;
+    font-size: 0.78rem !important;
   }
   
   /* 受测人姓名突出展示 */
   .admin-data-table td.cell-name strong {
-    font-size: 1.05rem;
-    color: var(--primary);
+    font-size: 1.05rem !important;
+    color: var(--primary) !important;
   }
   .admin-data-table td.cell-score strong {
-    font-size: 1.15rem;
-    color: var(--primary);
+    font-size: 1.15rem !important;
+    color: var(--primary) !important;
   }
   
   /* 树洞悄悄话留言气泡 */
   .admin-data-table td.cell-note {
-    flex-direction: column;
-    align-items: flex-start;
-    margin-top: 4px;
-    padding-top: 6px;
-    border-top: 1px dashed #E2E8F0;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    margin-top: 4px !important;
+    padding-top: 8px !important;
+    border-top: 1px dashed #E2E8F0 !important;
   }
   .admin-data-table td.cell-note .note-cell-text {
-    max-width: 100%;
-    white-space: normal;
-    line-height: 1.5;
-    color: #5D4037;
-    font-style: italic;
-    background: #FFFDF9;
-    border: 1px solid #EAD8C0;
-    padding: 8px 12px;
-    border-radius: 10px;
-    width: 100%;
-    margin-top: 4px;
-    font-size: 0.84rem;
+    max-width: 100% !important;
+    white-space: normal !important;
+    line-height: 1.5 !important;
+    color: #5D4037 !important;
+    font-style: italic !important;
+    background: #FFFDF9 !important;
+    border: 1px solid #EAD8C0 !important;
+    padding: 8px 12px !important;
+    border-radius: 10px !important;
+    width: 100% !important;
+    margin-top: 4px !important;
+    font-size: 0.84rem !important;
   }
   
   /* 操作按钮大触控栏 */
   .admin-data-table td.cell-actions {
-    margin-top: 8px;
-    padding-top: 10px;
-    border-top: 1px solid #EDF2F7;
-    display: flex;
-    gap: 10px;
-    width: 100%;
+    margin-top: 8px !important;
+    padding-top: 10px !important;
+    border-top: 1px solid #EDF2F7 !important;
+    display: flex !important;
+    gap: 10px !important;
+    width: 100% !important;
   }
   .admin-data-table td.cell-actions::before {
     display: none !important;
   }
   .admin-data-table td.cell-actions .btn-table-action {
-    flex: 1;
-    padding: 9px 0;
-    text-align: center;
-    font-size: 0.88rem;
-    margin: 0;
-    border-radius: 8px;
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
+    flex: 1 !important;
+    min-height: 42px !important;
+    padding: 10px 0 !important;
+    text-align: center !important;
+    font-size: 0.88rem !important;
+    font-weight: 700 !important;
+    margin: 0 !important;
+    border-radius: 10px !important;
+    display: inline-flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    cursor: pointer !important;
+  }
+  .admin-data-table td.cell-actions .btn-table-action:first-child {
+    background: #EBF7EE !important;
+    border: 1px solid #B7E4C7 !important;
+    color: #1B4332 !important;
+  }
+  .admin-data-table td.cell-actions .btn-table-action.btn-table-del {
+    background: #FFF5F5 !important;
+    border: 1px solid #FEB2B2 !important;
+    color: #C53030 !important;
   }
   
   /* 答卷详细查看弹窗移动端适配 */
-  .admin-detail-dialog {
+  .admin-detail-dialog,
+  .modal-dialog {
     max-width: 95vw !important;
-    margin: auto;
+    max-height: 90dvh !important;
+    margin: auto !important;
   }
-  .detail-card {
+  .detail-card,
+  .cloud-settings-card {
     padding: 18px 14px !important;
+    max-height: 85dvh !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior-y: contain !important;
   }
   .detail-meta-grid {
     grid-template-columns: 1fr !important;
@@ -2085,15 +2233,20 @@ body {
     font-size: 0.82rem !important;
   }
   .detail-q-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 6px !important;
   }
-  
-  /* 云端同步弹窗移动端适配 */
-  .cloud-settings-card {
-    padding: 18px 14px !important;
-  }
+}
+
+/* 刷新旋转动效 */
+.btn-dash.refreshing span {
+  display: inline-block;
+  animation: spinRefresh 0.75s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+@keyframes spinRefresh {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 /* ============================================================

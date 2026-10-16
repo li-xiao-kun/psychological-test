@@ -385,7 +385,7 @@ function bindEvents() {
   adminLoginForm.addEventListener("submit", handleAdminLoginSubmit);
   btnAdminLoginCancel.addEventListener("click", () => adminLoginModal.style.display = "none");
 
-  btnCloseDashboard.addEventListener("click", () => adminDashboardModal.style.display = "none");
+  btnCloseDashboard.addEventListener("click", closeAdminDashboard);
   btnAdminLogout.addEventListener("click", handleAdminLogout);
   btnExportCSV.addEventListener("click", handleExportCSV);
   btnAdminRefresh.addEventListener("click", refreshAdminData);
@@ -397,6 +397,9 @@ function bindEvents() {
   // 答卷详情弹窗
   btnCloseDetailModal.addEventListener("click", () => adminDetailModal.style.display = "none");
   btnCloseDetailBtn.addEventListener("click", () => adminDetailModal.style.display = "none");
+  adminDetailModal.addEventListener("click", (e) => {
+    if (e.target === adminDetailModal) adminDetailModal.style.display = "none";
+  });
 
   // 修改密码
   btnOpenChangePwd.addEventListener("click", () => {
@@ -406,12 +409,18 @@ function bindEvents() {
     confirmPasswordInput.value = "";
   });
   btnCancelChangePwd.addEventListener("click", () => adminChangePwdModal.style.display = "none");
+  adminChangePwdModal.addEventListener("click", (e) => {
+    if (e.target === adminChangePwdModal) adminChangePwdModal.style.display = "none";
+  });
   changePwdForm.addEventListener("submit", handleChangePasswordSubmit);
 
   // 跨设备云端设置弹窗
   btnOpenCloudSync.addEventListener("click", openCloudSettingsModal);
   btnCloseCloudModal.addEventListener("click", () => cloudSettingsModal.style.display = "none");
   btnCancelCloudSettings.addEventListener("click", () => cloudSettingsModal.style.display = "none");
+  cloudSettingsModal.addEventListener("click", (e) => {
+    if (e.target === cloudSettingsModal) cloudSettingsModal.style.display = "none";
+  });
   btnSaveCloudSettings.addEventListener("click", saveCloudSettings);
   btnTestPushNotification.addEventListener("click", testPushNotification);
 
@@ -1283,19 +1292,30 @@ function handleAdminLoginSubmit(e) {
 }
 
 /**
+ * 关闭管理员后台大屏，恢复背景网页顺畅滚动
+ */
+function closeAdminDashboard() {
+  adminDashboardModal.style.display = "none";
+  document.body.style.overflow = "";
+  document.documentElement.style.overflow = "";
+}
+
+/**
  * 登出管理员
  */
 function handleAdminLogout() {
   isAdminLoggedIn = false;
-  adminDashboardModal.style.display = "none";
+  closeAdminDashboard();
   alert("管理员已安全退出登录。");
 }
 
 /**
- * 打开管理员后台大屏
+ * 打开管理员后台大屏（锁定背景网页滚动，保持后台独立惯性滚动）
  */
 async function openAdminDashboard() {
   adminDashboardModal.style.display = "flex";
+  document.body.style.overflow = "hidden";
+  document.documentElement.style.overflow = "hidden";
   await refreshAdminData();
 }
 
@@ -1303,6 +1323,9 @@ async function openAdminDashboard() {
  * 刷新后台数据（优先从 Supabase 全球云端数据库抓取，支持自建 API 与本地回退）
  */
 async function refreshAdminData() {
+  if (btnAdminRefresh) {
+    btnAdminRefresh.classList.add("refreshing");
+  }
   let records = [];
   let isSupabaseSuccess = false;
 
@@ -1352,6 +1375,12 @@ async function refreshAdminData() {
   allAdminRecords = records;
   updateAdminMetrics(records);
   filterAndRenderAdminTable();
+
+  if (btnAdminRefresh) {
+    setTimeout(() => {
+      btnAdminRefresh.classList.remove("refreshing");
+    }, 450);
+  }
 }
 
 /**

@@ -9,7 +9,7 @@
   <!-- 预加载图标与字体 -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261015_mobile_ui">
+  <link rel="stylesheet" href="style.css?v=20261016_smooth_admin">
   <!-- 用于报告卡片导出的轻量级 html2canvas 支持 -->
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <!-- 引入 Supabase 官方全端数据库 SDK，支持跨设备云端实时同步 -->
@@ -334,16 +334,16 @@
           </div>
         </div>
         <div class="dashboard-top-actions">
-          <button id="btnOpenCloudSync" class="btn-dash btn-cloud" title="配置 Supabase 云数据库或微信提醒">
-            <span>⚙️ 云端数据库/同步配置</span>
-          </button>
           <button id="btnExportCSV" class="btn-dash btn-export" title="导出 Excel/CSV 报表">
-            <span>📥 导出 Excel / CSV 表格</span>
+            <span>📥 导出表格</span>
           </button>
-          <button id="btnOpenChangePwd" class="btn-dash btn-sec">
-            <span>🔑 修改密码</span>
+          <button id="btnOpenCloudSync" class="btn-dash btn-cloud" title="配置 Supabase 云数据库或微信提醒">
+            <span>⚙️ 云端同步</span>
           </button>
-          <button id="btnAdminLogout" class="btn-dash btn-danger">
+          <button id="btnOpenChangePwd" class="btn-dash btn-sec" title="修改管理员密码">
+            <span>🔑 改密</span>
+          </button>
+          <button id="btnAdminLogout" class="btn-dash btn-danger" title="退出管理员">
             <span>🚪 退出</span>
           </button>
           <button id="btnCloseDashboard" class="close-icon-btn dashboard-close-btn" aria-label="关闭">&times;</button>
@@ -622,6 +622,6 @@
     </div>
   </footer>
 
-  <script src="app.js?v=20261015_mobile_ui"></script>
+  <script src="app.js?v=20261016_smooth_admin"></script>
 </body>
 </html>
