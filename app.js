@@ -230,6 +230,12 @@ const customApiUrlInput = document.getElementById("customApiUrl");
 
 // 初始化
 document.addEventListener("DOMContentLoaded", () => {
+  // 确保所有弹窗在初始进入时绝对隐匿，杜绝任何样式缓存导致的误显与自动弹层
+  closeAdminDashboard();
+  if (adminLoginModal) adminLoginModal.style.setProperty("display", "none", "important");
+  if (resultModal) resultModal.style.setProperty("display", "none", "important");
+  if (historyDrawer) historyDrawer.style.setProperty("display", "none", "important");
+
   loadCloudConfig();
   renderQuestions();
   bindEvents();

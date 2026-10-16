@@ -6,10 +6,14 @@
   <title>🌱 近期心情与能量小打卡 - 心理健康与情绪自测</title>
   <meta name="description" content="一份温和、温暖的心情与身体能量小自测，了解你最近14天里的真实感受，给勇敢面对内心的自己一个大大的拥抱。">
   <meta name="theme-color" content="#EBF7EE">
+  <!-- 强制移动端与微信浏览器不缓存 HTML 主框架 -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <!-- 预加载图标与字体 -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261016_fix_overlay_leak">
+  <link rel="stylesheet" href="style.css?v=20261016_v3_stable">
   <!-- 用于报告卡片导出的轻量级 html2canvas 支持 -->
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <!-- 引入 Supabase 官方全端数据库 SDK，支持跨设备云端实时同步 -->
@@ -170,7 +174,7 @@
   </main>
 
   <!-- 结果报告模态弹窗 -->
-  <div id="resultModal" class="modal-overlay" style="display: none;">
+  <div id="resultModal" class="modal-overlay" style="display: none !important;">
     <div class="modal-dialog">
       <!-- 结果卡片容器（用于海报截图生成） -->
       <div id="reportCaptureCard" class="report-card">
@@ -278,7 +282,7 @@
   </div>
 
   <!-- 历史打卡记录抽屉 -->
-  <div id="historyDrawer" class="drawer-overlay" style="display: none;">
+  <div id="historyDrawer" class="drawer-overlay" style="display: none !important;">
     <div class="drawer-content">
       <div class="drawer-header">
         <h3>📖 心情电量日记</h3>
@@ -295,7 +299,7 @@
   </div>
 
   <!-- ================= 管理员登录弹窗 ================= -->
-  <div id="adminLoginModal" class="modal-overlay" style="display: none;">
+  <div id="adminLoginModal" class="modal-overlay" style="display: none !important;">
     <div class="modal-dialog admin-login-dialog">
       <div class="card login-card">
         <div class="login-header">
@@ -319,7 +323,7 @@
   </div>
 
   <!-- ================= 管理员工作台大屏 ================= -->
-  <div id="adminDashboardModal" class="modal-overlay admin-dashboard-overlay" style="display: none;">
+  <div id="adminDashboardModal" class="modal-overlay admin-dashboard-overlay" style="display: none !important;">
     <div class="admin-dashboard-container">
       <!-- 仪表盘顶栏 -->
       <header class="dashboard-header">
@@ -466,7 +470,7 @@
   </div>
 
   <!-- ================= 答卷详细查看弹窗 ================= -->
-  <div id="adminDetailModal" class="modal-overlay" style="display: none;">
+  <div id="adminDetailModal" class="modal-overlay" style="display: none !important;">
     <div class="modal-dialog admin-detail-dialog">
       <div class="card detail-card">
         <div class="detail-header">
@@ -501,7 +505,7 @@
   </div>
 
   <!-- ================= 修改管理员密码弹窗 ================= -->
-  <div id="adminChangePwdModal" class="modal-overlay" style="display: none;">
+  <div id="adminChangePwdModal" class="modal-overlay" style="display: none !important;">
     <div class="modal-dialog" style="max-width: 420px;">
       <div class="card">
         <h3 style="margin-bottom: 14px; color: var(--primary);">🔑 修改管理员密码</h3>
@@ -528,7 +532,7 @@
   </div>
 
   <!-- ================= 跨设备数据同步与微信提醒设置弹窗 ================= -->
-  <div id="cloudSettingsModal" class="modal-overlay" style="display: none;">
+  <div id="cloudSettingsModal" class="modal-overlay" style="display: none !important;">
     <div class="modal-dialog" style="max-width: 600px;">
       <div class="card cloud-settings-card">
         <div class="detail-header">
@@ -625,6 +629,6 @@
     </div>
   </footer>
 
-  <script src="app.js?v=20261016_fix_overlay_leak"></script>
+  <script src="app.js?v=20261016_v3_stable"></script>
 </body>
 </html>

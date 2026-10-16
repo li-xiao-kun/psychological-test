@@ -600,18 +600,26 @@ body {
    结果报告弹窗 (Modal)
    ============================================================ */
 .modal-overlay {
+  display: none;
   position: fixed;
   inset: 0;
   background: rgba(18, 38, 29, 0.65);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   z-index: 1000;
-  display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
   overflow-y: auto;
+}
+
+.modal-overlay[style*="display: flex"] {
+  display: flex !important;
   animation: fadeIn 0.3s ease;
+}
+
+.modal-overlay[style*="display: none"] {
+  display: none !important;
 }
 
 @keyframes fadeIn {
